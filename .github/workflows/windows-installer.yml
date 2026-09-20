@@ -31,8 +31,9 @@ jobs:
           function Invoke-WebRequest {
             param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing)
             if ($Uri -notlike 'https://github.com/Synderesis-EU/synderesis-code/releases/download/*') { throw 'Unexpected download origin' }
-            if ($OutFile) { Copy-Item $script:Archive $OutFile }
-            else { @{ Content = "$script:Digest  synderesis-code-0.1.0-alpha.1-windows-x86_64.zip" } }
+            if ($Uri.EndsWith('/SHA256SUMS')) {
+              "$script:Digest  synderesis-code-0.1.0-alpha.1-windows-x86_64.zip" | Set-Content -LiteralPath $OutFile -Encoding ascii
+            } else { Copy-Item $script:Archive $OutFile }
           }
           $env:SYNDERESIS_INSTALL_DIR = "$env:RUNNER_TEMP/installer-check"
           & ./synderesis/install.ps1

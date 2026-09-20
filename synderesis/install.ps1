@@ -13,7 +13,8 @@ $ErrorActionPreference = 'Stop'
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest "$Base/$Asset" -OutFile "$Temp/$Asset" -UseBasicParsing
-        $Checksums = (Invoke-WebRequest "$Base/SHA256SUMS" -UseBasicParsing).Content
+        Invoke-WebRequest "$Base/SHA256SUMS" -OutFile "$Temp/SHA256SUMS" -UseBasicParsing
+        $Checksums = Get-Content -LiteralPath "$Temp/SHA256SUMS" -Raw
         $Pattern = '(?m)^([a-f0-9]{64})\s+' + [regex]::Escape($Asset) + '\s*$'
         $Match = [regex]::Match($Checksums, $Pattern)
         if (-not $Match.Success) { throw 'Missing or invalid release checksum.' }

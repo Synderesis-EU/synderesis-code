@@ -4,6 +4,22 @@ A Catholic coding assistant for your terminal, an Apache-2.0 fork of Grok Build.
 
 **Alpha release.** Requires an active Synderesis subscription and prepaid credit.
 
+## Install
+
+Apple Silicon macOS:
+
+```sh
+curl -fsSL https://www.synderesis.eu/cli/install.sh | bash
+```
+
+Windows x64, in PowerShell:
+
+```powershell
+irm https://www.synderesis.eu/cli/install.ps1 | iex
+```
+
+The installers download a native executable and verify the release checksum. Python and Rust are not required. Installation uses your own account, without administrator access. The shell installer prints a PATH command if needed; the Windows installer adds its directory to your user PATH. You can also download the packages and source from [GitHub Releases](https://github.com/Synderesis-EU/synderesis-code/releases).
+
 ## Sign in
 
 Run `synderesis-code login`. Your browser opens the normal Synderesis account website, where you sign in and approve the device. A one-use PKCE exchange connects the CLI; its account key is saved in your operating system's credential store. You do not need a separate model-provider account.
@@ -24,16 +40,23 @@ Output is delivered after action review, so the initial response may take longer
 
 ## Build
 
-Use the repository's pinned Rust toolchain and install `dotslash` for the upstream build tools, then:
+Use the repository's pinned Rust toolchain. On macOS or Linux, install `dotslash` for the upstream build tools, then:
 
 ```sh
 cargo build -p xai-grok-pager-bin --release --locked
 ./target/release/synderesis-code --version
 ```
 
+On Windows, install Protocol Buffers compiler 29.3 and set `PROTOC` to its executable, then build the native target:
+
+```powershell
+$env:PROTOC = 'C:\path\to\protoc.exe'
+cargo build -p xai-grok-pager-bin --release --locked --target x86_64-pc-windows-msvc
+```
+
 Do not enable `synderesis-test-endpoint` in distributed builds. That feature exists solely for loopback integration tests. Normal builds use the canonical Synderesis API.
 
-The present binary package targets Apple Silicon macOS. It is not notarized. Other operating systems require building from source and have not yet been verified.
+Native packages target Apple Silicon macOS and Windows x64. Both are unsigned; the macOS binary is not notarized. Other operating systems require building from source and have not yet been verified. Windows builds use the portability fixes recorded in the package's `BUILD-COMMIT.txt` and the matching Windows source archive.
 
 ## Attribution
 

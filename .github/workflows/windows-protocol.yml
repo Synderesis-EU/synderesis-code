@@ -1,0 +1,34 @@
+name: Windows tool roundtrip
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  protocol:
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-protocol-${{ github.sha }}
+          restore-keys: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
+      - name: Install protobuf compiler
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-win64.zip -OutFile "$env:RUNNER_TEMP/protoc.zip"
+          Expand-Archive "$env:RUNNER_TEMP/protoc.zip" "$env:RUNNER_TEMP/protoc"
+          "PROTOC=$env:RUNNER_TEMP/protoc/bin/protoc.exe" >> $env:GITHUB_ENV
+      - name: Build isolated test binary
+        run: cargo build -p xai-grok-pager-bin --release --locked --target x86_64-pc-windows-msvc --features synderesis-test-endpoint
+      - name: Exercise HTTP and local file tool
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
+          python synderesis/check_tool_roundtrip.py

@@ -25,28 +25,9 @@ jobs:
       - name: Verify production endpoint is fixed
         run: python -c "import zipfile; z=zipfile.ZipFile('fixture/synderesis-code-windows-x86_64.zip'); assert b'SYNDERESIS_CODE_TEST_BASE_URL' not in z.read('synderesis-code.exe')"
       - name: Test installation and checksum rejection
-        shell: ${{ matrix.shell }}
+        shell: pwsh
+        env:
+          TEST_SHELL: ${{ matrix.shell }}
         run: |
-          $ErrorActionPreference = 'Stop'
-          $script:Archive = (Resolve-Path fixture/synderesis-code-windows-x86_64.zip).Path
-          $script:Digest = (Get-FileHash $script:Archive -Algorithm SHA256).Hash.ToLower()
-          function Invoke-WebRequest {
-            param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing)
-            if ($Uri -notlike 'https://github.com/Synderesis-EU/synderesis-code/releases/download/*') { throw 'Unexpected download origin' }
-            if ($Uri.EndsWith('/SHA256SUMS')) {
-              "$script:Digest  synderesis-code-0.1.0-alpha.1-windows-x86_64.zip" | Set-Content -LiteralPath $OutFile -Encoding ascii
-            } else { Copy-Item $script:Archive $OutFile }
-          }
-          $env:SYNDERESIS_INSTALL_DIR = "$env:RUNNER_TEMP/installer-check"
-          & ./synderesis/install.ps1
-          $exe = "$env:SYNDERESIS_INSTALL_DIR/synderesis-code.exe"
-          & $exe --help
-          if ($LASTEXITCODE -ne 0) { throw 'Installed executable help failed' }
-          $before = (Get-FileHash $exe -Algorithm SHA256).Hash
-          $script:Digest = '0' * 64
-          $rejected = $false
-          try { & ./synderesis/install.ps1 }
-          catch { if ($_ -notmatch 'checksum mismatch') { throw }; $rejected = $true }
-          if (-not $rejected) { throw 'Corrupted archive was accepted' }
-          if ((Get-FileHash $exe -Algorithm SHA256).Hash -ne $before) { throw 'Failed install changed executable' }
-          Write-Host 'PASS: native install, executable startup, and corruption rejection'
+          & $env:TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File synderesis/check_installer.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -5,7 +5,15 @@ use std::path::PathBuf;
 pub fn configure() -> Result<()> {
     let home = std::env::var_os("SYNDERESIS_CODE_HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".synderesis-code")))
+        .or_else(|| {
+            // Native Windows shells normally expose USERPROFILE, not HOME.
+            let user_home = if cfg!(windows) {
+                std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"))
+            } else {
+                std::env::var_os("HOME")
+            };
+            user_home.map(|p| PathBuf::from(p).join(".synderesis-code"))
+        })
         .ok_or_else(|| anyhow::anyhow!("Set SYNDERESIS_CODE_HOME to your private state directory"))?;
     let mut key = std::env::var("SYNDERESIS_API_KEY").unwrap_or_default();
     let args: Vec<String> = std::env::args().skip(1).collect();

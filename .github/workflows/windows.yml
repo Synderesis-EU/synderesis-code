@@ -11,6 +11,15 @@ jobs:
       CARGO_INCREMENTAL: '0'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
       - name: Install protobuf compiler
         shell: pwsh
         run: |
@@ -27,6 +36,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          Remove-Item Env:HOME -ErrorAction SilentlyContinue
+          Remove-Item Env:SYNDERESIS_CODE_HOME -ErrorAction SilentlyContinue
           $exe = 'target/x86_64-pc-windows-msvc/release/synderesis-code.exe'
           & $exe --version
           if ($LASTEXITCODE -ne 0) { throw 'Version check failed' }
@@ -44,3 +55,11 @@ jobs:
             synderesis-code-windows-x86_64.zip
             SHA256SUMS
           if-no-files-found: error
+      - uses: actions/cache/save@v4
+        if: always() && steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}

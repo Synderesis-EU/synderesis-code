@@ -12,6 +12,9 @@ jobs:
   installer:
     runs-on: windows-2025
     timeout-minutes: 10
+    strategy:
+      matrix:
+        shell: [pwsh, powershell]
     steps:
       - uses: actions/checkout@v4
       - name: Download built native executable
@@ -20,7 +23,7 @@ jobs:
           BUILD_RUN: ${{ inputs.build_run }}
         run: gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-windows-x86_64 --dir fixture
       - name: Test installation and checksum rejection
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         run: |
           $ErrorActionPreference = 'Stop'
           $script:Archive = (Resolve-Path fixture/synderesis-code-windows-x86_64.zip).Path

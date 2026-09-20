@@ -8,6 +8,7 @@
     }
     $Asset = "synderesis-code-$Version-windows-x86_64.zip"
     $Base = "https://github.com/Synderesis-EU/synderesis-code/releases/download/v$Version"
+    Write-Host "Installing Synderesis Code $Version..."
     $Temp = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
     New-Item -ItemType Directory -Path $Temp | Out-Null
     try {

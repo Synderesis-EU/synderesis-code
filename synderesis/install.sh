@@ -14,6 +14,7 @@ main() {
   command -v curl >/dev/null || { echo 'curl is required.' >&2; return 1; }
   asset="synderesis-code-${version}-${platform}.tar.gz"
   base="https://github.com/Synderesis-EU/synderesis-code/releases/download/v${version}"
+  printf 'Installing Synderesis Code %s...\n' "$version"
   temp="$(mktemp -d)"
   trap "rm -rf -- $(printf %q "$temp")" EXIT
   curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$base/$asset" -o "$temp/$asset"

@@ -1,0 +1,44 @@
+name: Windows native binary
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install protobuf compiler
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-WebRequest https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-win64.zip -OutFile "$env:RUNNER_TEMP/protoc.zip"
+          Expand-Archive "$env:RUNNER_TEMP/protoc.zip" "$env:RUNNER_TEMP/protoc"
+          "PROTOC=$env:RUNNER_TEMP/protoc/bin/protoc.exe" >> $env:GITHUB_ENV
+      - name: Build native CLI
+        shell: pwsh
+        run: cargo build -p xai-grok-pager-bin --release --locked --target x86_64-pc-windows-msvc
+      - name: Smoke test and package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'target/x86_64-pc-windows-msvc/release/synderesis-code.exe'
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'Version check failed' }
+          & $exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'Help check failed' }
+          New-Item -ItemType Directory -Path package
+          Copy-Item $exe, README.md, LICENSE, THIRD-PARTY-NOTICES package/
+          git rev-parse HEAD | Set-Content package/BUILD-COMMIT.txt
+          Compress-Archive package/* synderesis-code-windows-x86_64.zip
+          (Get-FileHash synderesis-code-windows-x86_64.zip -Algorithm SHA256).Hash.ToLower() + '  synderesis-code-windows-x86_64.zip' | Set-Content SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synderesis-code-windows-x86_64
+          path: |
+            synderesis-code-windows-x86_64.zip
+            SHA256SUMS
+          if-no-files-found: error

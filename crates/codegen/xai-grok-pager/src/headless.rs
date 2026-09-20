@@ -508,7 +508,13 @@ async fn open_session(
     restore_code: Option<bool>,
 ) -> anyhow::Result<OpenedSession> {
     let mcp_servers =
-        cli_config::load_mcp_servers(cwd, &xai_grok_tools::types::compat::CompatConfig::default());
+        cli_config::load_mcp_servers(cwd, &{
+            // Synderesis: never auto-import another coding application's MCP servers.
+            let mut compat = xai_grok_tools::types::compat::CompatConfig::default();
+            compat.claude.mcps = false;
+            compat.cursor.mcps = false;
+            compat
+        });
     if let Some(sid) = session_id_flag {
         let try_load: Result<acp::LoadSessionResponse, _> = acp_send(
             acp::LoadSessionRequest::new(acp::SessionId::new(sid.to_string()), cwd.to_path_buf())
@@ -558,7 +564,13 @@ async fn open_session_with_id(
     let cwd_str = cwd.to_string_lossy();
     crate::app::session_startup::ensure_session_id_available(session_id, &cwd_str)?;
     let mcp_servers =
-        cli_config::load_mcp_servers(cwd, &xai_grok_tools::types::compat::CompatConfig::default());
+        cli_config::load_mcp_servers(cwd, &{
+            // Synderesis: never auto-import another coding application's MCP servers.
+            let mut compat = xai_grok_tools::types::compat::CompatConfig::default();
+            compat.claude.mcps = false;
+            compat.cursor.mcps = false;
+            compat
+        });
     let mut meta = serde_json::json!({ "sessionId": session_id, "sessionKind": "headless" })
         .as_object()
         .cloned();

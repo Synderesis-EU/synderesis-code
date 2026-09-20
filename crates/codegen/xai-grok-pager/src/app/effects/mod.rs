@@ -67,7 +67,13 @@ pub(crate) async fn discover_mcp_servers(
     let started = std::time::Instant::now();
     let servers = tokio::task::spawn_blocking(move || xai_grok_shell::util::config::load_mcp_servers(
             &cwd,
-            &xai_grok_tools::types::compat::CompatConfig::default(),
+            &{
+            // Synderesis: never auto-import another coding application's MCP servers.
+            let mut compat = xai_grok_tools::types::compat::CompatConfig::default();
+            compat.claude.mcps = false;
+            compat.cursor.mcps = false;
+            compat
+        },
         ))
         .await
         .unwrap_or_else(|error| {

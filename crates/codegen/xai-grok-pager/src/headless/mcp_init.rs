@@ -64,7 +64,13 @@ fn init_wire_status(info: &McpServerInfo, is_resolved: bool) -> &'static str {
 }
 
 fn pending_from_config(cwd: &Path) -> Vec<McpServer> {
-    cli_config::load_mcp_servers(cwd, &xai_grok_tools::types::compat::CompatConfig::default())
+    cli_config::load_mcp_servers(cwd, &{
+            // Synderesis: never auto-import another coding application's MCP servers.
+            let mut compat = xai_grok_tools::types::compat::CompatConfig::default();
+            compat.claude.mcps = false;
+            compat.cursor.mcps = false;
+            compat
+        })
         .iter()
         .filter_map(|server| {
             let name = match server {

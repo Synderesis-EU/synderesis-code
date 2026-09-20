@@ -18,6 +18,8 @@ jobs:
           Invoke-WebRequest https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-win64.zip -OutFile "$env:RUNNER_TEMP/protoc.zip"
           Expand-Archive "$env:RUNNER_TEMP/protoc.zip" "$env:RUNNER_TEMP/protoc"
           "PROTOC=$env:RUNNER_TEMP/protoc/bin/protoc.exe" >> $env:GITHUB_ENV
+      - name: Test protobuf build helper
+        run: cargo test -p xai-proto-build --locked --lib
       - name: Build native CLI
         shell: pwsh
         run: cargo build -p xai-grok-pager-bin --release --locked --target x86_64-pc-windows-msvc

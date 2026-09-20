@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-09-21: portable protobuf dependency output files.
 mod debug_redact;
 pub mod find_protoc;
 
@@ -153,9 +154,15 @@ impl XaiProtoBuilder {
         // Can only process one input file when using --dependency_out=FILE.
         for proto in protos {
             let mut command = Command::new(protoc.unwrap_or(Path::new("protoc")));
+            let dependency_dir = tempfile::tempdir()?;
+            let dependency_path = dependency_dir.path().join("dependencies.d");
+            let descriptor_path = dependency_dir.path().join("descriptor.pb");
             command
-                .arg("--dependency_out=/dev/stdout")
-                .arg("--descriptor_set_out=/dev/null");
+                .arg(format!("--dependency_out={}", dependency_path.display()))
+                .arg(format!(
+                    "--descriptor_set_out={}",
+                    descriptor_path.display()
+                ));
 
             // Add protoc's well-known types include directory first (if found).
             // This is needed for Bazel sandboxed builds where protoc and its
@@ -181,14 +188,14 @@ impl XaiProtoBuilder {
                 return Err(anyhow::anyhow!("protoc command failed"));
             }
 
-            let output =
-                String::from_utf8(output.stdout).context("protoc command output not UTF-8")?;
+            let output = fs::read_to_string(&dependency_path)
+                .context("protoc dependency output not UTF-8")?;
 
             let mut lines = output.lines();
             let first_line = lines.next().context("protoc command output is empty")?;
-            let prefix = "/dev/null:";
-            let rem = first_line.strip_prefix(prefix).with_context(|| {
-                format!("protoc command output must start with /dev/null: {output:?}")
+            // Split on the target separator, not a Windows drive-letter colon.
+            let (_, rem) = first_line.split_once(": ").with_context(|| {
+                format!("protoc dependency output lacks a target separator: {output:?}")
             })?;
             for line in iter::once(rem).chain(lines) {
                 let line = line.trim();
@@ -196,7 +203,10 @@ impl XaiProtoBuilder {
                 // Depending on absolute paths like
                 // /Users/user/homebrew/Cellar/protobuf/29.1/include/google/protobuf/timestamp.proto
                 // is valid, but we want to have output more deterministic.
-                if line.contains("/include/google/protobuf/") {
+                if line
+                    .replace('\\', "/")
+                    .contains("/include/google/protobuf/")
+                {
                     continue;
                 }
 
@@ -359,5 +369,27 @@ pub fn configure() -> XaiProtoBuilder {
         file_descriptor_set_path: None,
         honor_debug_redact: false,
         btree_map_paths: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod portability_tests {
+    use super::*;
+
+    #[test]
+    fn dependency_output_uses_regular_files() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        let proto = dir.path().join("sample.proto");
+        fs::write(
+            &proto,
+            "syntax = \"proto3\"; package sample; message Sample { string value = 1; }",
+        )?;
+        let protoc = find_protoc::find_protoc()?;
+        XaiProtoBuilder::emit_rerun_if_changed(
+            protoc.as_deref(),
+            None,
+            [proto.as_path()],
+            [dir.path()],
+        )
     }
 }

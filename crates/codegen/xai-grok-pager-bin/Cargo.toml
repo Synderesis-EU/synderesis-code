@@ -1,10 +1,11 @@
+# Modified by Synderesis, 2026-09-20: distributable binary name.
 [package]
 name = "xai-grok-pager-bin"
 version = "1.0.38"
 edition.workspace = true
 license = "Apache-2.0"
 authors = ["xAI"]
-default-run = "xai-grok-pager"
+default-run = "synderesis-code"
 
 # Composition-root binary for the Grok Build TUI. The artifact is still named
 # `xai-grok-pager`. This package exists so the binary can link both the pager
@@ -12,10 +13,17 @@ default-run = "xai-grok-pager"
 # depends on `xai-grok-pager`, so the pager library cannot depend back on it
 # (cargo cycle). The binary installs the minimal-mode IoC hooks at startup.
 [[bin]]
-name = "xai-grok-pager"
+name = "synderesis-code"
 path = "src/main.rs"
 
 [dependencies]
+reqwest = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+webbrowser = { workspace = true }
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+
 # The pager library (all application logic + the public API main.rs drives).
 xai-grok-pager = { path = "../xai-grok-pager" }
 # Optional scrollback-native render mode, wired in via the fn-pointer seam.
@@ -83,6 +91,8 @@ serial_test = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 
 [features]
+# Integration-test builds only; never enable in published artifacts.
+synderesis-test-endpoint = []
 default = [
     "jemalloc",
     "sandbox-enforce",

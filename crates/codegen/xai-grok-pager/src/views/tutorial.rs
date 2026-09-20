@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-09-20: product identity.
 //! Onboarding tutorial overlay (`/tutorial`).
 //!
 //! A top-level modal (works over both the welcome screen and an agent session) with two screens:
@@ -296,7 +297,7 @@ fn handle_list_input(ev: &Event, st: &mut TutorialState) -> TutorialOutcome {
 /// Intro copy shown above the topic list.
 /// It doesn't promise how long the tour takes, just what it is and how to leave.
 const INTRO_LINES: [&str; 2] = [
-    "Quick tips to get the most out of Grok Build.",
+    "Quick tips to get the most out of Synderesis Code.",
     "Pick a topic. Esc when you're done.",
 ];
 
@@ -408,7 +409,7 @@ fn render_list(buf: &mut Buffer, area: Rect, st: &mut TutorialState, compact: bo
         },
     ];
     let modal_config = ModalWindowConfig {
-        title: "Welcome to Grok Build",
+        title: "Welcome to Synderesis Code",
         tabs: None,
         shortcuts: &shortcuts,
         sizing: ModalSizing {

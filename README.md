@@ -1,140 +1,40 @@
-<div align="center">
+# Synderesis Code
 
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://media.x.ai/v1/website/spacexai-symbol-white-transparent-0c31957f.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png">
-    <img alt="SpaceXAI logo" src="https://media.x.ai/v1/website/spacexai-symbol-black-transparent-6435cf42.png" width="96">
-  </picture>
-  <br>
-  Grok Build (<code>grok</code>)
-</h1>
+A Catholic coding assistant for your terminal, built from the Apache-2.0 Grok Build coding agent. It can inspect a project, edit files, run commands with local permission controls, and work through multi-step coding tasks.
 
-**Grok Build** is SpaceXAI's terminal-based AI coding agent. It runs as a
-full-screen TUI that understands your codebase, edits files, executes shell
-commands, searches the web, and manages long-running tasks — interactively,
-headlessly for scripting/CI, or embedded in editors via the Agent Client
-Protocol (ACP).
+**Alpha candidate: not yet available on the production API.** Do not install this build for production use until the matching backend is enabled.
 
-[Installing the released binary](#installing-the-released-binary) ·
-[Building from source](#building-from-source) ·
-[Documentation](#documentation) ·
-[Repository layout](#repository-layout) ·
-[Development](#development) ·
-[Contributing](#contributing) ·
-[License](#license)
+## Sign in
 
-![Grok Build TUI](https://media.x.ai/v1/website/universe-tui-screenshot-6f7a0837.png)
+Run `synderesis-code login`. Your browser opens the normal Synderesis account website, where you sign in and approve the device. A one-use PKCE exchange connects the CLI; its account key is saved in your operating system's credential store. You do not need a Grok, xAI or Vercel account.
 
-**Learn more about Grok Build at [x.ai/cli](https://x.ai/cli)**
+Then run `synderesis-code` in your project, or `synderesis-code -p "Explain this project"` for a single terminal response. Use `--help` for local permissions and sandbox options. State is kept in `~/.synderesis-code` (override with `SYNDERESIS_CODE_HOME`). In unattended environments, inject `SYNDERESIS_API_KEY` at runtime using your secret manager. Never put a real key in a plaintext `.env` file.
 
-This repository contains the Rust source for the `grok` CLI/TUI and its agent
-runtime. It is synced periodically from the SpaceXAI monorepo.
+`synderesis-code logout` removes this device's locally saved key. Revoke the device key from [your account](https://www.synderesis.eu/account/) to invalidate all copies. Website sign-out does not revoke CLI access.
 
-A small `SOURCE_REV` file at the root records the full monorepo commit SHA
-for the version of the code present in this tree.
+## Catholic conduct
 
-</div>
+Synderesis applies its Catholic system policy on the server and reviews each proposed answer and tool action before releasing it to the CLI. Requests to facilitate wrongdoing are refused with a permissible alternative. Ordinary service is available regardless of the user's identity or beliefs. Local instructions cannot replace the server policy. This is a fallible AI system; local permission prompts and human review remain necessary.
 
----
+## Models and billing
 
-## Installing the released binary
+The public model is `synderesis-code`, powered by Grok 4.6 through Vercel AI Gateway. Upstream credentials stay on the server. A paid Synderesis subscription and prepaid credit are required. Generation and the separate action review are both charged at provider inference cost divided by 0.70, converted to EUR at the configured published exchange-rate snapshot. This is a 30% gross margin, not a 30% markup. Cached input is priced separately; long-context rates apply when applicable. The server reserves a conservative maximum before dispatch and settles actual usage atomically.
 
-Prebuilt binaries are published for macOS, Linux, and Windows:
+Output is delivered after action review, so the initial response may take longer than an unreviewed live stream. This initial release supports text conversations and local function tools. It does not expose provider-hosted tools, image input or server-stored conversations. EU-only inference has not been verified.
+
+## Build
+
+Use the repository's pinned Rust toolchain and install `dotslash` for the upstream build tools, then:
 
 ```sh
-curl -fsSL https://x.ai/cli/install.sh | bash   # macOS / Linux / Git Bash
-irm https://x.ai/cli/install.ps1 | iex          # Windows PowerShell
-grok --version
+cargo build -p xai-grok-pager-bin --release --locked
+./target/release/synderesis-code --version
 ```
 
-See the [changelog](https://x.ai/build/changelog) for the latest fixes,
-features, and improvements in each release.
+Do not enable `synderesis-test-endpoint` in distributed builds. That feature exists solely for loopback integration tests. Normal builds use the canonical Synderesis API.
 
-## Building from source
+The present binary package targets Apple Silicon macOS. It is not notarized. Other operating systems require building from source and have not yet been verified.
 
-Requirements:
+## Attribution
 
-- **Rust** — the toolchain is pinned by [`rust-toolchain.toml`](rust-toolchain.toml);
-  `rustup` installs it automatically on first build.
-- **[DotSlash](https://dotslash-cli.com)** — required so hermetic tools under
-  [`bin/`](bin/) (notably [`bin/protoc`](bin/protoc)) can download and run.
-  Install it and ensure `dotslash` is on your `PATH` **before** building:
-
-  ```sh
-  cargo install dotslash
-  # or: prebuilt packages — https://dotslash-cli.com/docs/installation/
-  /usr/bin/env dotslash --help   # sanity check
-  ```
-
-- **protoc** — proto codegen resolves [`bin/protoc`](bin/protoc) via DotSlash,
-  or falls back to a `protoc` on `PATH` / `$PROTOC`.
-- macOS and Linux are supported build hosts; Windows builds are best-effort
-  and not currently tested from this tree.
-
-```sh
-cargo run -p xai-grok-pager-bin              # build + launch the TUI
-cargo build -p xai-grok-pager-bin --release  # release binary: target/release/xai-grok-pager
-cargo check -p xai-grok-pager-bin            # fast validation
-```
-
-The binary artifact is named `xai-grok-pager`; official installs ship it as
-`grok`. On first launch it opens your browser to authenticate — see the
-[authentication guide](crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md).
-
-## Documentation
-
-Full online documentation is available at
-[docs.x.ai/build/overview](https://docs.x.ai/build/overview).
-
-The user guide ships with the pager crate:
-[`crates/codegen/xai-grok-pager/docs/user-guide/`](crates/codegen/xai-grok-pager/docs/user-guide/)
-— getting started, keyboard shortcuts, slash commands, configuration, theming,
-MCP servers, skills, plugins, hooks, headless mode, sandboxing, and more.
-
-## Repository layout
-
-| Path | Contents |
-|------|----------|
-| `crates/codegen/xai-grok-pager-bin` | Composition-root package; builds the `xai-grok-pager` binary |
-| `crates/codegen/xai-grok-pager` | The TUI: scrollback, prompt, modals, rendering |
-| `crates/codegen/xai-grok-shell` | Agent runtime + leader/stdio/headless entry points |
-| `crates/codegen/xai-grok-tools` | Tool implementations (terminal, file edit, search, ...) |
-| `crates/codegen/xai-grok-workspace` | Host filesystem, VCS, execution, checkpoints |
-| `crates/codegen/...` | The rest of the CLI crate closure (config, MCP, markdown, sandbox, ...) |
-| `crates/common/`, `crates/build/`, `prod/mc/` | Small shared leaf crates pulled in by the closure |
-| `third_party/` | Vendored upstream source (Mermaid diagram stack) — see below |
-
-> [!IMPORTANT]
-> The root `Cargo.toml` (workspace members, dependency versions, lints,
-> profiles) is **generated** — treat it as read-only. Prefer editing per-crate
-> `Cargo.toml` files.
-
-## Development
-
-```sh
-cargo check -p <crate>        # always target specific crates; full-workspace builds are slow
-cargo test -p xai-grok-config # per-crate tests
-cargo clippy -p <crate>       # lint config: clippy.toml at the repo root
-cargo fmt --all               # rustfmt.toml at the repo root
-```
-
-## Contributing
-
-> [!NOTE]
-> External contributions are not accepted. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## License
-
-First-party code in this repository is licensed under the **Apache License,
-Version 2.0** — see [`LICENSE`](LICENSE).
-
-Third-party and vendored code remains under its original licenses. See:
-
-- [`THIRD-PARTY-NOTICES`](THIRD-PARTY-NOTICES) — crates.io / git dependencies,
-  bundled UI themes, and **in-tree source ports** (including openai/codex and
-  sst/opencode tool implementations)
-- [`crates/codegen/xai-grok-tools/THIRD_PARTY_NOTICES.md`](crates/codegen/xai-grok-tools/THIRD_PARTY_NOTICES.md)
-  — crate-local notice for the codex and opencode ports (license texts +
-  Apache §4(b) change notice)
-- [`third_party/NOTICE`](third_party/NOTICE) — vendored Mermaid-stack index
+Synderesis is an independent company. This project is not affiliated with or endorsed by xAI, Vercel, or the Catholic Church. Original Grok Build copyright, Apache-2.0 licensing and third-party notices are retained in `LICENSE` and `THIRD-PARTY-NOTICES`. Modified source files carry change notices. Upstream source revision: `4247f661689354b831191f11eeeac8424993fe3d`.

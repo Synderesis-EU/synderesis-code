@@ -1,3 +1,7 @@
 /target
 **/*.rs.bk
 .DS_Store
+
+# Synderesis secrets stay encrypted.
+.env
+!.env.age

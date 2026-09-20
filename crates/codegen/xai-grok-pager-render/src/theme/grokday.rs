@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-09-21: shared ink/blue product palette.
 //! GrokDay is the light counterpart to GrokNight.
 //! Backgrounds and text use a neutral grayscale ramp (no blue/warm tint).
 //! Accent colors are the same hue family as GrokNight but deepened for contrast on light backgrounds.
@@ -15,23 +16,23 @@ mod palette {
     use super::*;
 
     // ── Backgrounds (neutral light grays) ────────────────────────────────
-    pub const BG: Color = rgb(245, 245, 245); // #f5f5f5 — brightest (terminal bg)
-    pub const BG_DARK: Color = rgb(240, 240, 240); // #f0f0f0
-    pub const BG_STORM_DARK: Color = rgb(234, 234, 234); // #eaeaea
-    pub const BG_STORM: Color = rgb(238, 238, 238); // #eeeeee — main bg
-    pub const BG_HIGHLIGHT: Color = rgb(222, 222, 222); // #dedede — highlight bg
+    pub const BG: Color = rgb(234, 239, 246);
+    pub const BG_DARK: Color = rgb(224, 232, 243);
+    pub const BG_STORM_DARK: Color = rgb(218, 229, 244);
+    pub const BG_STORM: Color = rgb(234, 239, 246);
+    pub const BG_HIGHLIGHT: Color = rgb(210, 223, 243);
 
     // ── Text / grays (neutral dark) ──────────────────────────────────────
-    pub const FG: Color = rgb(38, 38, 38); // #262626 — primary text
-    pub const FG_DARK: Color = rgb(68, 68, 68); // #444444 — secondary text
+    pub const FG: Color = rgb(17, 32, 59);
+    pub const FG_DARK: Color = rgb(74, 93, 120);
     pub const FG_GUTTER: Color = rgb(178, 178, 178); // #b2b2b2 — dim
-    pub const COMMENT: Color = rgb(118, 118, 118); // #767676 — muted
+    pub const COMMENT: Color = rgb(74, 93, 120);
     pub const DARK3: Color = rgb(142, 142, 142); // #8e8e8e — medium gray
-    pub const DARK5: Color = rgb(98, 98, 98); // #626262 — bright gray
+    pub const DARK5: Color = rgb(74, 93, 120);
 
     // ── Accent colors (deepened for light-background contrast) ───────────
-    pub const BLUE: Color = rgb(47, 100, 210); // #2F64D2
-    pub const BLUE0: Color = rgb(40, 68, 138); // #28448A
+    pub const BLUE: Color = rgb(46, 74, 134);
+    pub const BLUE0: Color = rgb(46, 74, 134);
     pub const BLUE1: Color = rgb(15, 135, 162); // #0F87A2
     pub const CYAN: Color = rgb(0, 130, 170); // #0082AA
     pub const GREEN: Color = rgb(55, 142, 35); // #378E23
@@ -60,13 +61,13 @@ impl Theme {
             bg_terminal: BG,
 
             accent_user: FG_DARK,
-            accent_assistant: MAGENTA,
-            accent_thinking: MAGENTA,
+            accent_assistant: BLUE,
+            accent_thinking: BLUE,
             accent_tool: DARK5,
             accent_system: BLUE,
             accent_error: RED,
             accent_success: GREEN,
-            accent_running: MAGENTA,
+            accent_running: BLUE,
             accent_skill: BLUE,
 
             text_primary: FG,

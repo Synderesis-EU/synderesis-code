@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-09-21: stationary ASCII product wordmark.
 //! The logo is hidden entirely on legacy Windows consoles: the ConHost raster fonts do not cover the U+2800 braille block, so it renders as tofu.
 
 use ratatui::buffer::Buffer;
@@ -9,8 +10,8 @@ use ratatui::widgets::{Paragraph, Widget};
 use crate::render::color::blend_color;
 use crate::theme::Theme;
 
-const LOGO: &str = include_str!("../../../assets/logo/logo07.txt");
-const LOGO_SMALL: &str = include_str!("../../../assets/logo/logo05.txt");
+const LOGO: &str = "SYNDERESIS\nC O D E";
+const LOGO_SMALL: &str = "SYNDERESIS CODE";
 
 /// Height at or above which the small logo is shown (below it, no logo).
 const SMALL_LOGO_MIN_HEIGHT: u16 = 22;
@@ -108,12 +109,7 @@ const SHIMMER_FPS: f32 = 12.0;
 /// Quantized shimmer frame for the current wall-clock phase.
 /// The welcome screen redraws only when this advances, throttling the animation to ~`SHIMMER_FPS` rather than the full event-loop tick rate.
 /// The frame is pinned to 0 when the logo is hidden.
-pub fn shimmer_frame() -> u64 {
-    if logo_hidden() {
-        return 0;
-    }
-    (anim_phase_secs() * SHIMMER_FPS) as u64
-}
+pub fn shimmer_frame() -> u64 { 0 }
 
 /// Per-glyph shine opacity in `[0, 1]` at normalized diagonal position `diag` (0 is bottom-left, 1 is top-right) and animation time `secs`.
 /// A raised-cosine band sweeps from bottom-left to top-right and parks off-screen between sweeps; a gentle global pulse breathes underneath it.
@@ -149,11 +145,11 @@ fn render_into(area: Rect, buf: &mut Buffer, theme: &Theme, logo: &str) {
         .max()
         .unwrap_or(1)
         .max(1) as f32;
-    let secs = anim_phase_secs();
+    let secs = 0.0;
 
     // Blend each glyph from the resting gray toward the bright text color by its shine opacity, so a sheen sweeps across the braille art
     // Adjacent glyphs that land on the same blended color share one Span to hold down the per-frame allocation
-    let base = theme.gray;
+    let base = theme.text_primary;
     let hilite = theme.text_primary;
     let logo_lines: Vec<Line> = lines
         .iter()

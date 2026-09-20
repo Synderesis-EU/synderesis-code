@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-09-20: API defaults; disable analytics, uploads and feedback.
 use crate::agent::auth_method::ModelByok;
 use crate::agent::model_providers::{
     ModelProviderConfig, auth_config_issues, model_provider_auth_name, parse_model_providers,
@@ -45,8 +46,8 @@ pub const DEFAULT_AGENT_TYPE: &str = "grok-build-plan";
 pub(crate) fn default_agent_type() -> String {
     DEFAULT_AGENT_TYPE.to_owned()
 }
-pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = "https://cli-chat-proxy.grok.com/v1";
-pub const XAI_API_BASE_URL_DEFAULT: &str = "https://api.x.ai/v1";
+pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = "https://www.synderesis.eu/v1/code";
+pub const XAI_API_BASE_URL_DEFAULT: &str = "https://www.synderesis.eu/v1/code";
 const NO_INLINE_CITATIONS_RESPONSE_INCLUDE: &str = "no_inline_citations";
 /// One or more environment variable names that may hold a model API key.
 /// Serde `untagged`: accepts a string or an array in TOML/JSON.
@@ -2322,16 +2323,16 @@ impl Config {
     }
     /// Whether product analytics may run. Every product analytics check calls this.
     pub fn product_analytics_enabled(&self, auth: Option<&xai_grok_login::GrokAuth>) -> bool {
-        self.is_telemetry_enabled() && !auth.is_some_and(|auth| auth.is_zdr_team())
+        { let _ = auth; false }
     }
     pub(crate) fn is_telemetry_enabled(&self) -> bool {
-        self.resolve_telemetry_mode().value.is_enabled()
+        false
     }
     pub fn is_trace_upload_enabled(&self) -> bool {
-        self.resolve_trace_upload().value
+        false
     }
     pub fn is_feedback_enabled(&self) -> bool {
-        self.is_feature_enabled(Feature::Feedback)
+        false
     }
     pub(crate) fn is_session_recap_enabled(&self) -> bool {
         self.is_feature_enabled(Feature::SessionRecap)
@@ -2397,7 +2398,7 @@ impl Config {
             rs.and_then(|s| s.jemalloc_heap_profile_thresholds_bytes.as_deref()),
             rs.and_then(|s| s.jemalloc_heap_profile_poll_interval_secs),
             data_collection_disabled,
-            self.resolve_trace_upload().value,
+            false,
             crate::heap_profile::prof_available(),
         )
     }
@@ -2414,7 +2415,7 @@ impl Config {
             jemalloc_thresholds,
             jemalloc_poll_interval_secs,
             data_collection_disabled,
-            self.resolve_trace_upload().value,
+            false,
             crate::heap_profile::prof_available(),
         )
     }
@@ -3677,7 +3678,7 @@ pub struct ModelEntryConfig {
     /// See [`ModelInfo::model_family`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_family: Option<String>,
-    /// The base URL of the model. e.g. "https://api.x.ai/v1"
+    /// The base URL of the model. e.g. "https://www.synderesis.eu/v1/code"
     pub base_url: String,
     /// Human-readable display name of the model.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -4038,7 +4039,7 @@ pub struct ModelInfo {
     /// Provider family that mints this model's conversation items (e.g. "xai"); `None` means unknown.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_family: Option<String>,
-    /// The base URL of the model (session endpoint). e.g. "https://cli-chat-proxy.grok.com/v1"
+    /// The base URL of the model (session endpoint). e.g. "https://www.synderesis.eu/v1/code"
     pub base_url: String,
     /// Human-readable name of the model.
     /// Honored by both the picker (`/model`) and `/session-info`: when set, that's the label shown to users in either consumer.

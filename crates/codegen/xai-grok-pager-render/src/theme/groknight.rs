@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-09-21: shared ink/blue product palette.
 //! GrokNight theme: neutral gray base with TokyoNight accent colors.
 //!
 //! The canonical palette is defined in RGB (`Color::Rgb`).
@@ -17,22 +18,22 @@ mod palette {
     use super::*;
 
     // ── Backgrounds ─────────────────────────────────────────────────────
-    pub const BG: Color = rgb(10, 10, 10); //  #0a0a0a, Night (terminal bg)
-    pub const BG_DARK: Color = rgb(12, 12, 12); //  #0c0c0c, darkest
-    pub const BG_STORM_DARK: Color = rgb(17, 17, 17); //  #111111, dark bg
-    pub const BG_STORM: Color = rgb(20, 20, 20); //  #141414, main bg
-    pub const BG_HIGHLIGHT: Color = rgb(36, 36, 36); //  #242424, highlight bg
+    pub const BG: Color = rgb(13, 22, 39);
+    pub const BG_DARK: Color = rgb(10, 18, 33);
+    pub const BG_STORM_DARK: Color = rgb(15, 25, 44);
+    pub const BG_STORM: Color = rgb(17, 32, 59);
+    pub const BG_HIGHLIGHT: Color = rgb(35, 53, 82);
 
     // ── Text / grays ────────────────────────────────────────────────────
-    pub const FG: Color = rgb(225, 225, 225); // #e1e1e1, primary text
-    pub const FG_DARK: Color = rgb(200, 200, 200); // #c8c8c8, secondary text
+    pub const FG: Color = rgb(234, 239, 246);
+    pub const FG_DARK: Color = rgb(199, 212, 232);
     pub const FG_GUTTER: Color = rgb(65, 65, 65); //  #414141, dim
-    pub const COMMENT: Color = rgb(108, 108, 108); //  #6c6c6c, muted
+    pub const COMMENT: Color = rgb(151, 174, 207);
     pub const DARK3: Color = rgb(90, 90, 90); //  #5a5a5a, medium gray
-    pub const DARK5: Color = rgb(120, 120, 120); // #787878, bright gray
+    pub const DARK5: Color = rgb(151, 174, 207);
 
     // ── Accent colors (TokyoNight Night) ─────────────────────────────────
-    pub const BLUE: Color = rgb(122, 162, 247); // #7aa2f7
+    pub const BLUE: Color = rgb(148, 181, 237);
     pub const BLUE0: Color = rgb(61, 89, 161); // #3d59a1
     pub const BLUE1: Color = rgb(58, 149, 171); // #3A95AB
     pub const CYAN: Color = rgb(125, 207, 255); // #7dcfff
@@ -44,7 +45,7 @@ mod palette {
     pub const RED: Color = rgb(247, 118, 142); // #f7768e
     pub const RED1: Color = rgb(219, 75, 75); // #db4b4b
     pub const TEAL: Color = rgb(26, 188, 156); // #1abc9c
-    pub const YELLOW: Color = rgb(224, 175, 104); // #e0af68
+    pub const YELLOW: Color = rgb(191, 157, 87);
 
     pub const RED_DARK: Color = rgb(66, 14, 20); // #420e14, quantizes to 256-color red, not gray
     pub const GREEN_DARK: Color = rgb(6, 56, 6); // #063806, quantizes to 256-color green, not gray
@@ -62,13 +63,13 @@ impl Theme {
             bg_terminal: BG,
 
             accent_user: FG_DARK,
-            accent_assistant: MAGENTA,
-            accent_thinking: MAGENTA,
+            accent_assistant: BLUE,
+            accent_thinking: BLUE,
             accent_tool: DARK5,
             accent_system: BLUE,
             accent_error: RED,
             accent_success: GREEN,
-            accent_running: MAGENTA,
+            accent_running: BLUE,
             accent_skill: BLUE,
 
             text_primary: FG,

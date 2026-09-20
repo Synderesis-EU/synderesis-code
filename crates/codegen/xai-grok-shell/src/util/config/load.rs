@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-09-20: no upstream session relay.
 use super::mcp::*;
 use toml::Value as TomlValue;
 /// Resolve a bool from an optional env var, then config.toml `[section] key`, then false.
@@ -20,7 +21,7 @@ fn toml_bool_sync(env_var: Option<&str>, section: &str, key: &str) -> bool {
     }
 }
 pub(crate) fn load_relay_sync_enabled_sync() -> bool {
-    toml_bool_sync(Some("GROK_RELAY_SYNC_ENABLED"), "relay", "enabled")
+    false
 }
 const DEFAULT_FLUSH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 pub(crate) fn load_upload_wait_config_sync() -> (bool, std::time::Duration) {

@@ -566,6 +566,12 @@ fn collect_plugin(
     seen_paths: &mut HashSet<PathBuf>,
     candidates: &mut Vec<DiscoveredPlugin>,
 ) {
+    // Synderesis: executable plugins from another client require explicit --plugin-dir
+    // or [plugins].paths selection. Never auto-load their hooks or MCP servers.
+    if matches!(&origin, PluginOrigin::ProjectClaude | PluginOrigin::UserClaude
+        | PluginOrigin::ClaudeMarketplace { .. } | PluginOrigin::ClaudeInstalled { .. }) {
+        return;
+    }
     // Canonicalize for dedup
     let canonical = match dunce::canonicalize(plugin_root) {
         Ok(c) => c,
@@ -1538,7 +1544,7 @@ mod tests {
     }
 
     #[test]
-    fn discover_project_claude_plugin_records_claude_origin() {
+    fn synderesis_requires_explicit_selection_for_claude_plugin() {
         // Unique name: discover_plugins also scans the dev machine's real user dirs, and this test finds its plugin by name
         let name = format!("proj-claude-tool-{}", std::process::id());
         let tmp = tempfile::tempdir().unwrap();
@@ -1553,12 +1559,16 @@ mod tests {
         let trust = TrustStore::load_from(tmp.path().join("trust"));
         let config = DiscoveryConfig::default();
         let discovered = discover_plugins(Some(tmp.path()), &config, &trust, true);
-        let p = discovered
-            .iter()
-            .find(|p| p.manifest.name == name)
-            .expect("project claude plugin discovered");
-        assert_eq!(p.scope, PluginScope::Project);
-        assert_eq!(p.origin, PluginOrigin::ProjectClaude);
+        assert!(!discovered.iter().any(|p| p.manifest.name == name));
+        let explicit = DiscoveryConfig {
+            cli_plugin_dirs: vec![plugin_dir],
+            ..Default::default()
+        };
+        let selected = discover_plugins(Some(tmp.path()), &explicit, &trust, true);
+        let plugin = selected.iter().find(|p| p.manifest.name == name)
+            .expect("explicitly selected plugin remains available");
+        assert_eq!(plugin.origin, PluginOrigin::CliOverride);
+
     }
 
     #[test]

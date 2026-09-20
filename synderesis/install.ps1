@@ -1,6 +1,6 @@
 # Synderesis Code native Windows installer. No administrator access required.
-$ErrorActionPreference = 'Stop'
 & {
+    $ErrorActionPreference = 'Stop'
     if ($env:OS -ne 'Windows_NT') { throw 'Use the shell installer on macOS or Linux.' }
     $Version = '0.1.0-alpha.1'
     if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') {

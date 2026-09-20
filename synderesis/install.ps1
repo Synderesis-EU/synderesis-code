@@ -1,6 +1,7 @@
 # Synderesis Code native Windows installer. No administrator access required.
 $ErrorActionPreference = 'Stop'
 & {
+    if ($env:OS -ne 'Windows_NT') { throw 'Use the shell installer on macOS or Linux.' }
     $Version = '0.1.0-alpha.1'
     if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') {
         throw 'This release requires 64-bit x86 Windows. See https://github.com/Synderesis-EU/synderesis-code/releases'
@@ -21,9 +22,10 @@ $ErrorActionPreference = 'Stop'
         Expand-Archive "$Temp/$Asset" "$Temp/unpacked"
         $InstallDir = if ($env:SYNDERESIS_INSTALL_DIR) { $env:SYNDERESIS_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'SynderesisCode/bin' }
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-        Copy-Item "$Temp/unpacked/synderesis-code.exe" "$InstallDir/synderesis-code.exe" -Force
-        & "$InstallDir/synderesis-code.exe" --version
+        & "$Temp/unpacked/synderesis-code.exe" --version
         if ($LASTEXITCODE -ne 0) { throw 'Installed executable failed its version check.' }
+        Copy-Item "$Temp/unpacked/synderesis-code.exe" "$InstallDir/synderesis-code.exe.new" -Force
+        Move-Item "$InstallDir/synderesis-code.exe.new" "$InstallDir/synderesis-code.exe" -Force
         $UserPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
         if (($UserPath -split ';') -notcontains $InstallDir) {
             [Environment]::SetEnvironmentVariable('Path', ($UserPath.TrimEnd(';') + ';' + $InstallDir).TrimStart(';'), 'User')

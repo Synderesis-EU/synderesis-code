@@ -1,0 +1,46 @@
+name: Windows installer verification
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Successful Windows build run ID
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  installer:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download built native executable
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN: ${{ inputs.build_run }}
+        run: gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-windows-x86_64 --dir fixture
+      - name: Test installation and checksum rejection
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $script:Archive = (Resolve-Path fixture/synderesis-code-windows-x86_64.zip).Path
+          $script:Digest = (Get-FileHash $script:Archive -Algorithm SHA256).Hash.ToLower()
+          function Invoke-WebRequest {
+            param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing)
+            if ($Uri -notlike 'https://github.com/Synderesis-EU/synderesis-code/releases/download/*') { throw 'Unexpected download origin' }
+            if ($OutFile) { Copy-Item $script:Archive $OutFile }
+            else { @{ Content = "$script:Digest  synderesis-code-0.1.0-alpha.1-windows-x86_64.zip" } }
+          }
+          $env:SYNDERESIS_INSTALL_DIR = "$env:RUNNER_TEMP/installer-check"
+          & ./synderesis/install.ps1
+          $exe = "$env:SYNDERESIS_INSTALL_DIR/synderesis-code.exe"
+          & $exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'Installed executable help failed' }
+          $before = (Get-FileHash $exe -Algorithm SHA256).Hash
+          $script:Digest = '0' * 64
+          $rejected = $false
+          try { & ./synderesis/install.ps1 }
+          catch { if ($_ -notmatch 'checksum mismatch') { throw }; $rejected = $true }
+          if (-not $rejected) { throw 'Corrupted archive was accepted' }
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash -ne $before) { throw 'Failed install changed executable' }
+          Write-Host 'PASS: native install, executable startup, and corruption rejection'

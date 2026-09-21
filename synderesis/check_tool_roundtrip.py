@@ -36,7 +36,7 @@ class Handler(BaseHTTPRequestHandler):
         global seen_tool_result
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         if self.path == '/v1/code/responses':
-            self.responses(body)
+            self.handle_responses(body)
             return
         assert self.path == '/v1/code/chat/completions', self.path
         names = [tool.get('function', {}).get('name') for tool in body.get('tools', [])]
@@ -65,7 +65,7 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send(json.dumps({**base, 'object': 'chat.completion', 'choices': [{'index': 0, 'message': message, 'finish_reason': finish}], 'usage': usage}).encode())
 
-    def responses(self, body):
+    def handle_responses(self, body):
         global seen_tool_result
         names = [tool.get('name') for tool in body.get('tools', [])]
         results = [item for item in body.get('input', []) if item.get('type') == 'function_call_output' and item.get('call_id') == 'call_fixture']
@@ -79,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
             item = {'type': 'message', 'id': 'msg_fixture', 'role': 'assistant', 'status': 'completed',
                     'content': [{'type': 'output_text', 'text': MARKER if results and seen_tool_result else 'Fixture session', 'annotations': []}]}
         result = {'id': 'resp_' + uuid.uuid4().hex, 'object': 'response', 'created_at': 1, 'model': 'synderesis-code',
-                  'status': 'completed', 'output': [item], 'usage': {'input_tokens': 100, 'output_tokens': 20, 'total_tokens': 120}}
+                  'status': 'completed', 'output': [item], 'usage': {'input_tokens': 100, 'output_tokens': 20, 'total_tokens': 120, 'input_tokens_details': {'cached_tokens': 0}, 'output_tokens_details': {'reasoning_tokens': 0}}}
         if body.get('stream'):
             events = [
                 {'type': 'response.created', 'response': {**result, 'status': 'in_progress', 'output': []}},

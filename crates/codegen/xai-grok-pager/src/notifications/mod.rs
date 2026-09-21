@@ -173,7 +173,7 @@ impl NotificationService {
         if buf.is_empty() { None } else { Some(buf) }
     }
 
-    /// Reset the tab title back to "grok" and clear the progress bar so neither lingers after exit. Enqueued, never
+    /// Reset the tab title back to "Synderesis Code" and clear the progress bar so neither lingers after exit. Enqueued, never
     /// inline: `/quit` can land while the writer is parked holding the stderr lock, and the queue orders the reset
     /// after any still-queued busy-title escape.
     pub fn shutdown(&mut self) {

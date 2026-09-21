@@ -1668,13 +1668,17 @@ pub(crate) fn set_terminal_title(title: &str) {
 /// Sanitized/truncated window title.
 /// Strips control characters: crossterm's `SetTitle` emits the string raw inside an OSC sequence.
 /// An embedded BEL/ESC would terminate the OSC early and let the remainder inject arbitrary escape sequences into the terminal.
+// Modified by Synderesis: brand session titles and retain the 80-character limit.
 fn terminal_title_string(title: &str) -> String {
     let sanitized: String = title.chars().filter(|c| !c.is_control()).collect();
     if sanitized.is_empty() {
-        "grok".into()
+        "Synderesis Code".into()
     } else {
-        let truncated: String = sanitized.chars().take(80 - 6).collect();
-        format!("{} - grok", truncated)
+        let truncated: String = sanitized
+            .chars()
+            .take(80 - " - Synderesis Code".len())
+            .collect();
+        format!("{} - Synderesis Code", truncated)
     }
 }
 #[cfg(test)]
@@ -1724,11 +1728,20 @@ mod tests {
     fn terminal_title_strips_control_characters() {
         assert_eq!(
             terminal_title_string("evil\x07\x1b]52;c;payload\x07title"),
-            "evil]52;c;payloadtitle - grok"
+            "evil]52;c;payloadtitle - Synderesis Code"
         );
-        assert_eq!(terminal_title_string("\x07\x1b\x00"), "grok");
-        assert_eq!(terminal_title_string(""), "grok");
-        assert_eq!(terminal_title_string("My chat"), "My chat - grok");
+        assert_eq!(terminal_title_string("\x07\x1b\x00"), "Synderesis Code");
+        assert_eq!(terminal_title_string(""), "Synderesis Code");
+        assert_eq!(
+            terminal_title_string("My chat"),
+            "My chat - Synderesis Code"
+        );
+    }
+    #[test]
+    fn terminal_title_retains_length_limit() {
+        let title = terminal_title_string(&"é".repeat(100));
+        assert_eq!(title.chars().count(), 80);
+        assert!(title.ends_with(" - Synderesis Code"));
     }
     #[test]
     fn hunk_tracker_mode_nothing_set_is_none() {

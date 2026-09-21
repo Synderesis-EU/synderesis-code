@@ -29,11 +29,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        self.send(json.dumps({'object': 'list', 'data': [{'id': 'synderesis-code', 'object': 'model', 'created': 1, 'owned_by': 'synderesis'}]}).encode())
+        self.send(json.dumps({'object': 'list', 'data': [{'id': 'synderesis-code', 'object': 'model', 'created': 1, 'owned_by': 'synderesis',
+            'model': 'synderesis-code', 'api_backend': 'responses', 'context_window': 500000, 'max_completion_tokens': 32768}]}).encode())
 
     def do_POST(self):
         global seen_tool_result
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+        if self.path == '/v1/code/responses':
+            self.responses(body)
+            return
         assert self.path == '/v1/code/chat/completions', self.path
         names = [tool.get('function', {}).get('name') for tool in body.get('tools', [])]
         results = [item for item in body.get('messages', []) if item.get('role') == 'tool' and item.get('tool_call_id') == 'call_fixture']
@@ -61,6 +65,32 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send(json.dumps({**base, 'object': 'chat.completion', 'choices': [{'index': 0, 'message': message, 'finish_reason': finish}], 'usage': usage}).encode())
 
+    def responses(self, body):
+        global seen_tool_result
+        names = [tool.get('name') for tool in body.get('tools', [])]
+        results = [item for item in body.get('input', []) if item.get('type') == 'function_call_output' and item.get('call_id') == 'call_fixture']
+        requests.append({'path': self.path, 'tools': names, 'tool_results': len(results), 'max_output_tokens': body.get('max_output_tokens')})
+        if results and MARKER in json.dumps(results):
+            seen_tool_result = True
+        if 'read_file' in names and not results:
+            item = {'type': 'function_call', 'id': 'fc_fixture', 'call_id': 'call_fixture', 'name': 'read_file',
+                    'arguments': json.dumps({'target_file': 'release-check.txt'}), 'status': 'completed'}
+        else:
+            item = {'type': 'message', 'id': 'msg_fixture', 'role': 'assistant', 'status': 'completed',
+                    'content': [{'type': 'output_text', 'text': MARKER if results and seen_tool_result else 'Fixture session', 'annotations': []}]}
+        result = {'id': 'resp_' + uuid.uuid4().hex, 'object': 'response', 'created_at': 1, 'model': 'synderesis-code',
+                  'status': 'completed', 'output': [item], 'usage': {'input_tokens': 100, 'output_tokens': 20, 'total_tokens': 120}}
+        if body.get('stream'):
+            events = [
+                {'type': 'response.created', 'response': {**result, 'status': 'in_progress', 'output': []}},
+                {'type': 'response.output_item.added', 'output_index': 0, 'item': {**item, 'status': 'in_progress'}},
+                {'type': 'response.output_item.done', 'output_index': 0, 'item': item},
+                {'type': 'response.completed', 'response': result},
+            ]
+            self.send(''.join('event: ' + e['type'] + '\ndata: ' + json.dumps(dict(e, sequence_number=i)) + '\n\n' for i, e in enumerate(events)).encode(), 'text/event-stream')
+        else:
+            self.send(json.dumps(result).encode())
+
 
 
 def main():
@@ -72,10 +102,17 @@ def main():
         with tempfile.TemporaryDirectory(prefix='synderesis-protocol-') as directory:
             Path(directory, 'release-check.txt').write_text(MARKER + '\n', encoding='utf-8')
             env = dict(os.environ, SYNDERESIS_API_KEY='sk_live_synthetic_fixture_only', SYNDERESIS_CODE_HOME=str(Path(directory, 'state')), SYNDERESIS_CODE_TEST_BASE_URL=f'http://127.0.0.1:{server.server_port}/v1/code')
-            result = subprocess.run([binary, '-p', 'Read release-check.txt with read_file and reply with its content.', '--output-format', 'plain', '--disable-web-search', '--tools', 'read_file', '--allow', 'Read', '--max-turns', '3'], cwd=directory, env=env, capture_output=True, text=True, timeout=120, encoding='utf-8', errors='replace')
+            command = [binary, '-p', 'Read release-check.txt with read_file and reply with its content.', '--output-format', 'plain', '--disable-web-search', '--tools', 'read_file', '--allow', 'Read', '--max-turns', '3']
+            if os.name == 'nt':
+                # Launch the native executable by name from CMD, just as a user does.
+                env['PATH'] = str(Path(binary).parent) + os.pathsep + env['PATH']
+                command[0] = 'synderesis-code'
+                command = [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/c', subprocess.list2cmdline(command)]
+            result = subprocess.run(command, cwd=directory, env=env, capture_output=True, text=True, timeout=120, encoding='utf-8', errors='replace')
             print(json.dumps({'returncode': result.returncode, 'received_file_content': seen_tool_result, 'requests': requests, 'stdout': result.stdout[-2000:], 'stderr': result.stderr[-3000:]}))
             assert result.returncode == 0 and seen_tool_result and MARKER in result.stdout, 'HTTP/file-tool roundtrip failed'
             assert 'mcp.stripe.com' not in result.stderr and 'mcp.vercel.com' not in result.stderr
+            assert any(r['path'] == '/v1/code/responses' and r.get('max_output_tokens') == 32768 for r in requests), 'Updated Responses model defaults were not used'
     finally:
         server.shutdown()
         server.server_close()

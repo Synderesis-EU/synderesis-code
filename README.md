@@ -32,6 +32,8 @@ Run `synderesis-code login`. Your browser opens the normal Synderesis account we
 
 Then run `synderesis-code` in your project, or `synderesis-code -p "Explain this project"` for a single terminal response. Use `--help` for local permissions and sandbox options. State is kept in `~/.synderesis-code` (override with `SYNDERESIS_CODE_HOME`). In unattended environments, inject `SYNDERESIS_API_KEY` at runtime using your secret manager. Never put a real key in a plaintext `.env` file.
 
+On Windows, these commands run directly in Command Prompt as well as PowerShell. No WSL or separate shell is required. Run `cd` to your project directory, then `synderesis-code` to open the interactive terminal interface. Rerun the installer above to update an existing installation.
+
 `synderesis-code logout` removes this device's locally saved key. Revoke the device key from [your account](https://www.synderesis.eu/account/) to invalidate all copies. Website sign-out does not revoke CLI access.
 
 ## Catholic conduct
@@ -43,6 +45,8 @@ Synderesis applies its Catholic system policy on the server and reviews each pro
 The CLI connects to the Synderesis API. The underlying models may change without requiring a CLI update. Upstream credentials stay on the server. A paid Synderesis subscription and prepaid credit are required. Generation and the separate action review are both charged at provider inference cost divided by 0.70, converted to EUR at the configured published exchange-rate snapshot. This is a 30% gross margin, not a 30% markup. Cached input is priced separately; long-context rates apply when applicable. The server reserves a conservative maximum before dispatch and settles actual usage atomically.
 
 Output is delivered after action review, so the initial response may take longer than an unreviewed live stream. This initial release supports text conversations and local function tools. It does not expose provider-hosted tools, image input or server-stored conversations. EU-only inference has not been verified.
+
+The conversation context window is 500,000 tokens, shared by input and output. The CLI requests up to 32,768 output tokens per turn by default; the API accepts explicit output caps up to the full model window, subject to the combined context limit. Automatic compaction leaves room for the next response and action review. The context counter measures conversation size, not your prepaid credit balance.
 
 ## Build
 

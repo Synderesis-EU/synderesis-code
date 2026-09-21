@@ -56,7 +56,7 @@ pub fn configure() -> Result<()> {
             "web_search": "synderesis-code", "session_summary": "synderesis-code", "image_description": "synderesis-code", "prompt_suggestion": "synderesis-code"},
         "model": {"synderesis-code": {"model": "synderesis-code", "name": "Synderesis Code", "api_backend": "responses",
             "base_url": base_url, "env_key": "SYNDERESIS_API_KEY",
-            "context_window": 32000, "max_completion_tokens": 8192, "supports_backend_search": false,
+            "context_window": 500000, "max_completion_tokens": 32768, "supports_backend_search": false,
             "inference_idle_timeout_secs": 240}}
     });
     // Runs at the very beginning of main, before threads or the async runtime exist.

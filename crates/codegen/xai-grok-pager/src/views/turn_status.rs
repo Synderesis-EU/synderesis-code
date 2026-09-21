@@ -1,8 +1,8 @@
 //! Turn status line: a single-row widget showing the current turn activity.
 //!
-//! Layout: `><(((o>                   Run command 0.2s              1m20s ⇣12k [stop]`
+//! Layout: `⠧ Run command 0.2s              1m20s ⇣12k [stop]`
 //!
-//! - Swim loader (left, 24 columns, 160ms/frame) plus two spaces
+//! - Spinner (left, slowed to ~7.5fps)
 //! - Activity label (colored per activity type, truncates if needed)
 //! - Phase timer `Xs` (gray, never truncates)
 //! - Queued-send hint `· N queued, Enter to send now` (gray, sendable waits only)
@@ -367,7 +367,12 @@ pub fn render_turn_status(
     let spinner_str = if is_pending_user_input {
         format!("{} ", crate::glyphs::diamond_filled())
     } else {
-        swim_working_indicator(tick, turn_elapsed, area.width)
+        let frames = crate::glyphs::braille_spinner_frames();
+        let frame_idx = (tick / SPINNER_DIVISOR) as usize % frames.len();
+        match frames.get(frame_idx) {
+            Some(frame) => format!("{frame} "),
+            None => String::new(),
+        }
     };
     let spinner_width = spinner_str.width();
 
@@ -692,22 +697,6 @@ fn compute_activity(
     }
 }
 
-fn swim_working_indicator(tick: u64, turn_elapsed: Option<Duration>, area_width: u16) -> String {
-    let frames = crate::glyphs::synderesis_swim_frames();
-    let field = crate::glyphs::SYNDERESIS_SWIM_WIDTH;
-    if (area_width as usize) < field.saturating_add(6) {
-        return String::new();
-    }
-    let idx = match turn_elapsed {
-        Some(d) => (d.as_millis() / crate::glyphs::SYNDERESIS_SWIM_INTERVAL_MS) as usize,
-        None => (tick / 5) as usize,
-    } % frames.len();
-    match frames.get(idx) {
-        Some(frame) => format!("{frame}  "),
-        None => String::new(),
-    }
-}
-
 /// Shown from the session create dispatch until the id binds or the create fails.
 fn render_starting_session(
     buf: &mut Buffer,
@@ -716,14 +705,15 @@ fn render_starting_session(
     tick: u64,
     theme: &Theme,
 ) {
-    let spinner = swim_working_indicator(tick, Some(started.elapsed()), area.width);
-    if spinner.is_empty() {
+    let frames = crate::glyphs::braille_spinner_frames();
+    let frame_idx = (tick / SPINNER_DIVISOR) as usize % frames.len();
+    let Some(frame) = frames.get(frame_idx) else {
         return;
-    }
+    };
     let timer_str = format!(" {}", format_turn_timer(started.elapsed()));
     let style = Style::default().fg(theme.gray_dim);
     let spans = vec![
-        Span::styled(spinner, style),
+        Span::styled(format!("{frame} "), style),
         Span::styled("Starting session…", style),
         Span::styled(timer_str, style),
     ];

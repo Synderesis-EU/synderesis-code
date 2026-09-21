@@ -144,53 +144,6 @@ pub fn diamond_hollow_char() -> char {
     diamond_hollow().chars().next().unwrap_or('\u{25C7}')
 }
 
-/// Approved Synderesis swim loader. Every frame is exactly 24 ASCII columns; do not trim.
-pub const SYNDERESIS_SWIM_WIDTH: usize = 24;
-/// Milliseconds per swim frame.
-pub const SYNDERESIS_SWIM_INTERVAL_MS: u128 = 160;
-
-pub fn synderesis_swim_frames() -> &'static [&'static str] {
-    const FRAMES: &[&str] = &[
-        "><(((o>                 ",
-        " }-(((o>                ",
-        "  ><(((o>               ",
-        "   >-(((o>              ",
-        "    ><(((o>             ",
-        "     }-(((o>            ",
-        "      ><(((o>           ",
-        "       >-(((o>          ",
-        "        ><(((o>         ",
-        "         }-(((o>        ",
-        "          ><(((o>       ",
-        "           >-(((o>      ",
-        "            ><(((o>     ",
-        "             }-(((o>    ",
-        "              ><(((o>   ",
-        "               >-(((o>  ",
-        "                ><(((o> ",
-        "                 }-(((o>",
-        "                 <o)))><",
-        "                <o)))-< ",
-        "               <o)))><  ",
-        "              <o)))-{   ",
-        "             <o)))><    ",
-        "            <o)))-<     ",
-        "           <o)))><      ",
-        "          <o)))-{       ",
-        "         <o)))><        ",
-        "        <o)))-<         ",
-        "       <o)))><          ",
-        "      <o)))-{           ",
-        "     <o)))><            ",
-        "    <o)))-<             ",
-        "   <o)))><              ",
-        "  <o)))-{               ",
-        " <o)))><                ",
-        "<o)))-<                 ",
-    ];
-    FRAMES
-}
-
 /// Braille spinner; U+2800 is not CP437, so legacy ConHost uses a 1-column ASCII spinner. Frames stay 1 column so layout does not shift.
 pub fn braille_spinner_frames() -> &'static [&'static str] {
     const FANCY: &[&str] = &[
@@ -586,32 +539,6 @@ mod tests {
             monitor_icon_frames(),
             ["\u{25CB}", "\u{25CE}", "\u{25C9}", "\u{25CE}"]
         );
-    }
-
-    #[test]
-    fn synderesis_swim_frames_match_spec() {
-        let frames = synderesis_swim_frames();
-        assert_eq!(frames.len(), 36);
-        for (i, frame) in frames.iter().enumerate() {
-            assert_eq!(
-                frame.len(),
-                SYNDERESIS_SWIM_WIDTH,
-                "frame {i} must be 24 bytes"
-            );
-            assert_eq!(
-                frame.width(),
-                SYNDERESIS_SWIM_WIDTH,
-                "frame {i} must be 24 columns"
-            );
-            assert!(
-                frame.chars().all(|c| c.is_ascii()),
-                "frame {i} must stay ASCII"
-            );
-        }
-        assert_eq!(frames[0], "><(((o>                 ");
-        assert_eq!(frames[17], "                 }-(((o>");
-        assert_eq!(frames[18], "                 <o)))><");
-        assert_eq!(frames[35], "<o)))-<                 ");
     }
 
     // Both variants of each pre-composed button must keep a fixed column width so the right-aligned chrome lands in the same cells everywhere

@@ -1,6 +1,10 @@
 name: Windows tool roundtrip
 on:
   workflow_dispatch:
+    inputs:
+      build_ref:
+        description: Optional already-built runtime commit (must match current Rust source)
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -11,14 +15,35 @@ jobs:
       CARGO_INCREMENTAL: '0'
     steps:
       - uses: actions/checkout@v4
+      - name: Preserve current checks and select runtime
+        shell: pwsh
+        env:
+          BUILD_REF: ${{ inputs.build_ref }}
+        run: |
+          Copy-Item synderesis "$env:RUNNER_TEMP/verification" -Recurse
+          if ($env:BUILD_REF) {
+            git fetch origin $env:BUILD_REF
+            git diff --exit-code $env:BUILD_REF HEAD -- crates Cargo.toml Cargo.lock .cargo
+            if ($LASTEXITCODE -ne 0) { throw 'Selected runtime differs from current Rust source' }
+            git checkout --detach $env:BUILD_REF
+            if ($LASTEXITCODE -ne 0) { throw 'Runtime checkout failed' }
+          }
       - uses: actions/cache/restore@v4
+        id: cache
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: windows-protocol-${{ github.sha }}
+          key: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-${{ inputs.build_ref || github.sha }}
           restore-keys: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
+      - name: Reuse exact runtime compilation timestamps
+        if: inputs.build_ref != '' && steps.cache.outputs.cache-hit == 'true'
+        shell: pwsh
+        run: |
+          # Source content is the exact cached commit. A fresh checkout otherwise
+          # invalidates every workspace crate solely because of newer mtimes.
+          python -c "import os,subprocess; t=int(subprocess.check_output(['git','show','-s','--format=%ct','HEAD'])); paths=subprocess.check_output(['git','ls-files','-z']).decode().split('\0'); [os.utime(p,(t,t)) for p in paths if p and os.path.isfile(p)]"
       - name: Install protobuf compiler
         shell: pwsh
         run: |
@@ -27,14 +52,19 @@ jobs:
           "PROTOC=$env:RUNNER_TEMP/protoc/bin/protoc.exe" >> $env:GITHUB_ENV
       - name: Build isolated test binary
         run: cargo build -p xai-grok-pager-bin --release --locked --target x86_64-pc-windows-msvc --features synderesis-test-endpoint
+      - name: Preserve test-only executable for verification retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: synderesis-code-loopback-test-only
+          path: target/x86_64-pc-windows-msvc/release/synderesis-code.exe
       - name: Exercise HTTP and local file tool
         shell: pwsh
         run: |
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
-          python synderesis/check_tool_roundtrip.py
+          python "$env:RUNNER_TEMP/verification/check_tool_roundtrip.py"
       - name: Exercise native CMD interactive interface
         shell: pwsh
         run: |
           python -m pip install pywinpty==3.0.3
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
-          python synderesis/check_cmd_startup.py
+          python "$env:RUNNER_TEMP/verification/check_cmd_startup.py"

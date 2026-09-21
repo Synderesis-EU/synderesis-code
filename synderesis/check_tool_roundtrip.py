@@ -107,7 +107,9 @@ def main():
                 # Launch the native executable by name from CMD, just as a user does.
                 env['PATH'] = str(Path(binary).parent) + os.pathsep + env['PATH']
                 command[0] = 'synderesis-code'
-                command = [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/c', subprocess.list2cmdline(command)]
+                # Pass CMD its command string directly. A list would make Python
+                # escape the prompt's quotes for the C runtime, not for CMD.
+                command = subprocess.list2cmdline([os.environ.get('COMSPEC', 'cmd.exe')]) + ' /d /s /c "' + subprocess.list2cmdline(command) + '"'
             result = subprocess.run(command, cwd=directory, env=env, capture_output=True, text=True, timeout=120, encoding='utf-8', errors='replace')
             print(json.dumps({'returncode': result.returncode, 'received_file_content': seen_tool_result, 'requests': requests, 'stdout': result.stdout[-2000:], 'stderr': result.stderr[-3000:]}))
             assert result.returncode == 0 and seen_tool_result and MARKER in result.stdout, 'HTTP/file-tool roundtrip failed'

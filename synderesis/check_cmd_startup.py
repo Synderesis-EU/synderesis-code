@@ -58,8 +58,10 @@ def main():
                     time.sleep(0.1)
                 assert not process.isalive(), 'Interactive Quit did not exit CMD child'
             finally:
-                if process.isalive():
-                    process.close(force=True)
+                # PyWinpty 3.0.3 isalive() marks the wrapper closed when the
+                # child exits, although its forwarding sockets still need close().
+                process.closed = False
+                process.close(force=True)
                 reader.join(2)
                 # Drop ConPTY's host handle before deleting its working directory.
                 # The CLI can already have exited while that handle remains open.

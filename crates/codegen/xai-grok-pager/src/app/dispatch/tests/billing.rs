@@ -377,7 +377,7 @@ fn upsell_non_max_shows_qa_with_retry_option() {
     );
     let q = first_question(agent_qv(&app));
     assert_eq!(q.options.len(), 3);
-    assert_eq!(option_at(q, 0).label, "Upgrade tier");
+    assert_eq!(option_at(q, 0).label, "Manage subscription");
     assert_eq!(option_at(q, 0).id.as_deref(), Some(UPSELL_URL_UPGRADE));
     assert_eq!(option_at(q, 1).label, "Pay as you go");
     assert_eq!(option_at(q, 1).id.as_deref(), Some(UPSELL_URL_PAYG));
@@ -430,7 +430,7 @@ fn upsell_non_max_qa_heading_is_spending_cap_when_payg_on() {
 }
 
 #[test]
-fn upsell_non_max_upgrade_url_is_supergrok() {
+fn upsell_non_max_upgrade_url_is_synderesis() {
     let mut app = test_app_with_agent();
     open_upsell_qa(
         &mut app,
@@ -440,8 +440,7 @@ fn upsell_non_max_upgrade_url_is_supergrok() {
         .id
         .as_deref()
         .unwrap();
-    assert!(url.contains("supergrok"), "got: {url}");
-    assert!(url.contains("referrer=grok-build"), "got: {url}");
+    assert_eq!(url, "https://www.synderesis.eu/account/?intent=subscribe#billing-card");
 }
 
 #[test]
@@ -455,7 +454,7 @@ fn upsell_non_max_payg_url_is_usage() {
         .id
         .as_deref()
         .unwrap();
-    assert!(url.contains("_s=usage"), "got: {url}");
+    assert_eq!(url, "https://www.synderesis.eu/account/?intent=credits#billing-card");
 }
 
 #[test]
@@ -489,15 +488,15 @@ fn upsell_non_max_unified_shows_buy_credits() {
     let mut app = test_app_with_agent();
     open_upsell_qa(&mut app, CreditLimitUpsellMode::UnifiedCredits);
     let q = first_question(agent_qv(&app));
-    assert!(q.question.contains("weekly limit"));
+    assert!(q.question.contains("Synderesis subscription and credit"));
     assert_eq!(
         option_at(q, 0).description,
-        "Upgrade to a higher tier for more usage"
+        "Manage your Synderesis subscription"
     );
     assert_eq!(option_at(q, 1).label, "Buy more credits");
     assert_eq!(
         option_at(q, 1).description,
-        "Purchase credits to keep using Grok Build"
+        "Purchase credits to keep using Synderesis Code"
     );
     assert_eq!(option_at(q, 2).label, "Try Again");
 }
@@ -513,7 +512,7 @@ fn upsell_max_unified_qa_omits_upgrade() {
         "max-tier upsell must not push a scrollback card"
     );
     let q = first_question(agent_qv(&app));
-    assert!(q.question.contains("weekly limit"));
+    assert!(q.question.contains("Synderesis subscription and credit"));
     assert_eq!(q.options.len(), 2);
     assert_eq!(option_at(q, 0).label, "Buy more credits");
     assert_eq!(option_at(q, 0).id.as_deref(), Some(UPSELL_URL_PAYG));
@@ -819,7 +818,7 @@ fn manage_billing_gates_on_consumer_billing_surface() {
     let mut app = test_app_with_agent();
     dispatch(Action::ManageBilling, &mut app);
     let opened = std::fs::read_to_string(&out).unwrap_or_default();
-    assert!(opened.contains("grok.com/?_s=usage"), "got: {opened}");
+    assert!(opened.contains(UPSELL_URL_PAYG), "got: {opened}");
     let _ = std::fs::remove_file(&out);
 
     // Non-consumer: silent no-op (slash command never offers manage).
@@ -1271,7 +1270,7 @@ fn free_usage_upsell_displaces_feedback_before_opening_question() {
 }
 
 #[test]
-fn free_usage_upsell_shows_three_options_with_exact_labels() {
+fn free_usage_upsell_shows_synderesis_subscription() {
     let mut app = test_app_with_agent();
     let agent = app.agents.get_mut(&AgentId(0)).unwrap();
     open_free_usage_upsell(agent, None);
@@ -1287,23 +1286,11 @@ fn free_usage_upsell_shows_three_options_with_exact_labels() {
     ));
     let q = first_question(qv);
     assert_eq!(q.question, "You hit your free usage limit.");
-    let expected = [
-        (
-            "Upgrade to SuperGrok",
-            "For everyday coding and productivity tasks",
-            Some(UPSELL_URL_UPGRADE),
-        ),
-        (
-            "Upgrade to SuperGrok Plus",
-            "Significantly higher usage and rate limits",
-            Some(UPSELL_URL_UPGRADE),
-        ),
-        (
-            "Upgrade to SuperGrok Heavy",
-            "Get the most out of Grok Build. Highest usage limits.",
-            Some(UPSELL_URL_UPGRADE),
-        ),
-    ];
+    let expected = [(
+        "Manage subscription",
+        "View your Synderesis subscription and prepaid credit",
+        Some(UPSELL_URL_UPGRADE),
+    )];
     assert_eq!(q.options.len(), expected.len());
     for (opt, (label, desc, id)) in q.options.iter().zip(expected) {
         assert_eq!(opt.label, label);
@@ -1389,7 +1376,7 @@ fn free_usage_translate_local_submit_maps_options() {
         source: xai_grok_telemetry::events::SuperGrokUpsell::FreeUsagePaywall,
     };
 
-    for idx in [0, 1, 2] {
+    for idx in 0..first_question(&qv).options.len() {
         set_first_selection(&mut qv, QuestionSelection::Single(Some(idx)));
         match translate_local_submit_for_test(&qv, kind(), false) {
             InputOutcome::Action(Action::OpenUrl(url)) => assert_eq!(url, UPSELL_URL_UPGRADE),
@@ -1400,7 +1387,7 @@ fn free_usage_translate_local_submit_maps_options() {
 
 /// Submitting a tier-restricted command opens the three-option SuperGrok upsell and neither runs the command nor leaks the text to the model.
 #[test]
-fn restricted_command_submit_opens_three_option_upsell() {
+fn restricted_command_submit_opens_synderesis_billing() {
     let mut app = test_app_with_agent();
     let id = AgentId(0);
     app.agents
@@ -1431,14 +1418,10 @@ fn restricted_command_submit_opens_three_option_upsell() {
         )
     ));
     let q = first_question(qv);
-    assert_eq!(q.question, "Unlock all features with SuperGrok.");
-    assert_eq!(q.options.len(), 3);
-    assert_eq!(option_at(q, 0).label, "Upgrade to SuperGrok");
+    assert_eq!(q.question, "Manage your Synderesis subscription.");
+    assert_eq!(q.options.len(), 1);
+    assert_eq!(option_at(q, 0).label, "Manage subscription");
     assert_eq!(option_at(q, 0).id.as_deref(), Some(UPSELL_URL_UPGRADE));
-    assert_eq!(option_at(q, 1).label, "Upgrade to SuperGrok Plus");
-    assert_eq!(option_at(q, 1).id.as_deref(), Some(UPSELL_URL_UPGRADE));
-    assert_eq!(option_at(q, 2).label, "Upgrade to SuperGrok Heavy");
-    assert_eq!(option_at(q, 2).id.as_deref(), Some(UPSELL_URL_UPGRADE));
 }
 
 /// Aliases of a restricted command hit the same upsell (deny-list matching covers aliases via the registry).

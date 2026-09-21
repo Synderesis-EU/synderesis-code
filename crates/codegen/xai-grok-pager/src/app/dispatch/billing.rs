@@ -26,10 +26,10 @@ pub(super) fn is_max_tier(subscription_tier: Option<&str>) -> bool {
 }
 
 /// URL for upgrading the subscription tier.
-pub(crate) const UPSELL_URL_UPGRADE: &str = "https://grok.com/supergrok?referrer=grok-build";
+pub(crate) const UPSELL_URL_UPGRADE: &str = "https://www.synderesis.eu/account/?intent=subscribe#billing-card";
 
 /// URL for managing pay-as-you-go or on-demand spending and purchasing credits.
-pub(crate) const UPSELL_URL_PAYG: &str = "https://grok.com?_s=usage";
+pub(crate) const UPSELL_URL_PAYG: &str = "https://www.synderesis.eu/account/?intent=credits#billing-card";
 
 /// Billing mode for credit-limit upsell copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,16 +103,16 @@ pub(super) fn open_credit_limit_upsell(
 
     let copy = match mode {
         CreditLimitUpsellMode::UnifiedCredits => CreditLimitCopy {
-            heading: "You hit your weekly limit.",
-            upgrade_tier_desc: "Upgrade to a higher tier for more usage",
+            heading: "Check your Synderesis subscription and credit.",
+            upgrade_tier_desc: "Manage your Synderesis subscription",
             secondary_label: "Buy more credits",
-            secondary_desc: "Purchase credits to keep using Grok Build",
+            secondary_desc: "Purchase credits to keep using Synderesis Code",
             second_choice: xai_grok_telemetry::events::CreditLimitChoice::PurchaseCredits,
             payg_telemetry: false,
         },
         CreditLimitUpsellMode::LegacyPayg { enabled: true } => CreditLimitCopy {
             heading: "You\u{2019}ve hit your spending cap.",
-            upgrade_tier_desc: "Upgrade to a higher tier for more credits",
+            upgrade_tier_desc: "Manage your Synderesis subscription",
             secondary_label: "Increase limit",
             secondary_desc: "Raise your pay-as-you-go spending cap",
             second_choice: xai_grok_telemetry::events::CreditLimitChoice::PayAsYouGo,
@@ -120,7 +120,7 @@ pub(super) fn open_credit_limit_upsell(
         },
         CreditLimitUpsellMode::LegacyPayg { enabled: false } => CreditLimitCopy {
             heading: "You\u{2019}ve hit the credit limit for your plan.",
-            upgrade_tier_desc: "Upgrade to a higher tier for more credits",
+            upgrade_tier_desc: "Manage your Synderesis subscription",
             secondary_label: "Pay as you go",
             secondary_desc: "Enable pay-as-you-go credits for on-demand usage",
             second_choice: xai_grok_telemetry::events::CreditLimitChoice::PayAsYouGo,
@@ -140,7 +140,7 @@ pub(super) fn open_credit_limit_upsell(
     let mut choices = Vec::new();
     if !max_tier {
         options.push(QuestionOption {
-            label: "Upgrade tier".into(),
+            label: "Manage subscription".into(),
             description: copy.upgrade_tier_desc.into(),
             preview: None,
             id: Some(UPSELL_URL_UPGRADE.into()),
@@ -232,7 +232,7 @@ fn open_supergrok_upsell(
             "free-usage-upsell",
         ),
         UpsellReason::RestrictedCommand => (
-            "Unlock all features with SuperGrok.",
+            "Manage your Synderesis subscription.",
             SuperGrokUpsell::RestrictedCommand,
             "restricted-command-upsell",
         ),
@@ -243,27 +243,12 @@ fn open_supergrok_upsell(
         auth_method,
     });
 
-    // /supergrok lists all plans; every upgrade option lands there.
-    let options = vec![
-        QuestionOption {
-            label: "Upgrade to SuperGrok".into(),
-            description: "For everyday coding and productivity tasks".into(),
-            preview: None,
-            id: Some(UPSELL_URL_UPGRADE.into()),
-        },
-        QuestionOption {
-            label: "Upgrade to SuperGrok Plus".into(),
-            description: "Significantly higher usage and rate limits".into(),
-            preview: None,
-            id: Some(UPSELL_URL_UPGRADE.into()),
-        },
-        QuestionOption {
-            label: "Upgrade to SuperGrok Heavy".into(),
-            description: "Get the most out of Grok Build. Highest usage limits.".into(),
-            preview: None,
-            id: Some(UPSELL_URL_UPGRADE.into()),
-        },
-    ];
+    let options = vec![QuestionOption {
+        label: "Manage subscription".into(),
+        description: "View your Synderesis subscription and prepaid credit".into(),
+        preview: None,
+        id: Some(UPSELL_URL_UPGRADE.into()),
+    }];
     let question = Question {
         question: heading.into(),
         options,
@@ -533,15 +518,6 @@ pub(super) fn dispatch_open_supergrok_url(app: &mut AppView) -> Vec<Effect> {
         source: SuperGrokUpsell::WelcomeScreen,
         auth_method: app.login_method_id.as_ref().map(|id| id.0.to_string()),
     });
-    let url = app
-        .gate
-        .as_ref()
-        .and_then(|g| g.url.as_deref())
-        .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
-    // Funnel attribution: tag SuperGrok upsell clicks from the CLI with `referrer=grok-build`, matching the OAuth consent flow and x.ai/cli links
-    // It applies even when the URL came from remote settings's `gate_url`, so nothing depends on the remote flag being configured correctly
-    // If the URL already specifies a referrer it's left alone
-    let url = crate::app::link_opener::ensure_query_param(url, "referrer", "grok-build");
-    super::ctx::open_url_or_show(app, &url);
+    super::ctx::open_url_or_show(app, UPSELL_URL_UPGRADE);
     vec![]
 }

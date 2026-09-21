@@ -1,5 +1,6 @@
 """Native CMD + ConPTY interactive startup against a synthetic loopback API."""
 import os
+import gc
 from pathlib import Path
 import queue
 import tempfile
@@ -56,11 +57,16 @@ def main():
                 while process.isalive() and time.monotonic() < deadline:
                     time.sleep(0.1)
                 assert not process.isalive(), 'Interactive Quit did not exit CMD child'
-                print('PASS: native CMD interactive menu, Synderesis Code title and keyboard Quit')
             finally:
                 if process.isalive():
                     process.close(force=True)
                 reader.join(2)
+                # Drop ConPTY's host handle before deleting its working directory.
+                # The CLI can already have exited while that handle remains open.
+                del process
+                gc.collect()
+                time.sleep(0.5)
+        print('PASS: native CMD interactive menu, Synderesis Code title and keyboard Quit')
     finally:
         server.shutdown()
         server.server_close()

@@ -28,3 +28,4 @@ if ($LASTEXITCODE -eq 0) { throw 'CMD launcher hid installer failure' }
 if ((Get-Content -LiteralPath $env:SYNDERESIS_INSTALL_DIR -Raw).Trim() -ne 'preserve this file') { throw 'Failure overwrote existing file' }
 if ((Get-FileHash -LiteralPath $Installed -Algorithm SHA256).Hash -ne $Before) { throw 'Failure changed existing executable' }
 Write-Host "PASS: $Architecture CMD install, spaces in path, same-window command, help/version, failure propagation and preserved files"
+exit 0

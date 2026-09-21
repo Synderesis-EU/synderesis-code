@@ -12,17 +12,23 @@ Apple Silicon macOS:
 curl -fsSL https://www.synderesis.eu/cli/install.sh | bash
 ```
 
-Windows x64, in PowerShell:
+Windows x64, in Command Prompt:
+
+```cmd
+curl.exe -fsSL https://www.synderesis.eu/cli/install.cmd -o "%TEMP%\synderesis-install.cmd" && call "%TEMP%\synderesis-install.cmd"
+```
+
+Or in PowerShell:
 
 ```powershell
 irm https://www.synderesis.eu/cli/install.ps1 | iex
 ```
 
-The installers download a native executable and verify the release checksum. Python and Rust are not required. Installation uses your own account, without administrator access. The shell installer prints a PATH command if needed; the Windows installer adds its directory to your user PATH. You can also download the packages and source from [GitHub Releases](https://github.com/Synderesis-EU/synderesis-code/releases).
+The installers download a native executable and verify the release checksum. Python and Rust are not required. Installation uses your own account, without administrator access. The shell installer prints a PATH command if needed; the Windows installer adds its directory to your user PATH. The Command Prompt launcher also makes the command available in the current window. You can also download the packages and source from [GitHub Releases](https://github.com/Synderesis-EU/synderesis-code/releases).
 
 ## Sign in
 
-Run `synderesis-code login`. Your browser opens the normal Synderesis account website, where you sign in and approve the device. A one-use PKCE exchange connects the CLI; its account key is saved in your operating system's credential store. You do not need a separate model-provider account.
+Run `synderesis-code login`. Your browser opens the normal Synderesis account website, where you sign in and return automatically to the CLI. A one-use PKCE exchange connects the CLI; its account key is saved in your operating system's credential store. You do not need a separate model-provider account.
 
 Then run `synderesis-code` in your project, or `synderesis-code -p "Explain this project"` for a single terminal response. Use `--help` for local permissions and sandbox options. State is kept in `~/.synderesis-code` (override with `SYNDERESIS_CODE_HOME`). In unattended environments, inject `SYNDERESIS_API_KEY` at runtime using your secret manager. Never put a real key in a plaintext `.env` file.
 

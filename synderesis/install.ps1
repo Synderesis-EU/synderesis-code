@@ -3,8 +3,17 @@
     $ErrorActionPreference = 'Stop'
     if ($env:OS -ne 'Windows_NT') { throw 'Use the shell installer on macOS or Linux.' }
     $Version = '0.1.0-alpha.1'
-    if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') {
-        throw 'This release requires 64-bit x86 Windows. See https://github.com/Synderesis-EU/synderesis-code/releases'
+    # Prefer the native Windows architecture, including from a 32-bit PowerShell
+    # process. RuntimeInformation can report the process architecture on older .NET.
+    $Architecture = if ($env:PROCESSOR_ARCHITEW6432) {
+        $env:PROCESSOR_ARCHITEW6432
+    } elseif ($env:PROCESSOR_ARCHITECTURE) {
+        $env:PROCESSOR_ARCHITECTURE
+    } else {
+        [string][System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+    }
+    if ($Architecture -notin @('AMD64', 'X64')) {
+        throw "Detected Windows architecture '$Architecture'. This release supports Intel/AMD 64-bit Windows; ARM64 and 32-bit Windows do not yet have a verified package. See https://github.com/Synderesis-EU/synderesis-code/releases"
     }
     $Asset = "synderesis-code-$Version-windows-x86_64.zip"
     $Base = "https://github.com/Synderesis-EU/synderesis-code/releases/download/v$Version"

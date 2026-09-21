@@ -1,0 +1,22 @@
+name: Windows Command Prompt installer
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cmd:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        architecture: [x64, x86]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify architecture detection in Windows PowerShell
+        shell: powershell
+        run: ./synderesis/check_architecture.ps1
+      - name: Verify native CMD installation and error handling
+        shell: powershell
+        env:
+          CMD_ARCHITECTURE: ${{ matrix.architecture }}
+        run: ./synderesis/check_cmd_installer.ps1 -Architecture $env:CMD_ARCHITECTURE

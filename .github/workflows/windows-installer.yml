@@ -24,6 +24,13 @@ jobs:
         run: gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-windows-x86_64 --dir fixture
       - name: Verify production endpoint is fixed
         run: python -c "import zipfile; z=zipfile.ZipFile('fixture/synderesis-code-windows-x86_64.zip'); assert b'SYNDERESIS_CODE_TEST_BASE_URL' not in z.read('synderesis-code.exe')"
+      - name: Test architecture detection
+        shell: pwsh
+        env:
+          TEST_SHELL: ${{ matrix.shell }}
+        run: |
+          & $env:TEST_SHELL -NoProfile -NonInteractive -ExecutionPolicy Bypass -File synderesis/check_architecture.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test installation and checksum rejection
         shell: pwsh
         env:

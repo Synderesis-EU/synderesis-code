@@ -32,3 +32,9 @@ jobs:
         run: |
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
           python synderesis/check_tool_roundtrip.py
+      - name: Exercise native CMD interactive interface
+        shell: pwsh
+        run: |
+          python -m pip install pywinpty==3.0.3
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
+          python synderesis/check_cmd_startup.py

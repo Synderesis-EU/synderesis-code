@@ -4,9 +4,14 @@ $global:SynderesisFixtureDigest = (Get-FileHash $global:SynderesisFixtureArchive
 function Invoke-WebRequest {
   param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing)
   if ($Uri -notlike 'https://github.com/Synderesis-EU/synderesis-code/releases/download/*') { throw 'Unexpected download origin' }
-  if ($Uri.EndsWith('/SHA256SUMS')) {
+  $Url = [Uri]$Uri
+  if ($Url.AbsolutePath.EndsWith('/SHA256SUMS')) {
+    if ($Url.Query -notmatch '^\?check=[a-f0-9-]{36}$') { throw 'Checksum request must bypass stale cache' }
     "$global:SynderesisFixtureDigest  synderesis-code-0.1.0-alpha.1-windows-x86_64.zip" | Set-Content -LiteralPath $OutFile -Encoding ascii
-  } else { Copy-Item $global:SynderesisFixtureArchive $OutFile }
+  } else {
+    if ($Url.Query -ne "?sha256=$global:SynderesisFixtureDigest") { throw 'Archive request must be bound to its digest' }
+    Copy-Item $global:SynderesisFixtureArchive $OutFile
+  }
 }
 $env:SYNDERESIS_INSTALL_DIR = "$env:RUNNER_TEMP/installer-check"
 & ./synderesis/install.ps1

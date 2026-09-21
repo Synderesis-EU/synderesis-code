@@ -17,10 +17,11 @@ main() {
   printf 'Installing Synderesis Code %s...\n' "$version"
   temp="$(mktemp -d)"
   trap "rm -rf -- $(printf %q "$temp")" EXIT
-  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$base/$asset" -o "$temp/$asset"
-  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$base/SHA256SUMS" -o "$temp/SHA256SUMS"
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$base/SHA256SUMS?check=$(date +%s)-$RANDOM" -o "$temp/SHA256SUMS"
   expected="$(awk -v name="$asset" '$2 == name { print $1 }' "$temp/SHA256SUMS")"
   [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || { echo 'Missing or invalid release checksum.' >&2; return 1; }
+  # The alpha assets may be replaced in place; bind the download cache to its digest.
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$base/$asset?sha256=$expected" -o "$temp/$asset"
   actual="$(shasum -a 256 "$temp/$asset" | awk '{print $1}')"
   [[ "$actual" == "$expected" ]] || { echo 'Release checksum mismatch.' >&2; return 1; }
   mkdir "$temp/unpacked"

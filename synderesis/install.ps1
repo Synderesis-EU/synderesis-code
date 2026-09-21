@@ -22,12 +22,13 @@
     New-Item -ItemType Directory -Path $Temp | Out-Null
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest "$Base/$Asset" -OutFile "$Temp/$Asset" -UseBasicParsing
-        Invoke-WebRequest "$Base/SHA256SUMS" -OutFile "$Temp/SHA256SUMS" -UseBasicParsing
+        Invoke-WebRequest "$Base/SHA256SUMS?check=$([Guid]::NewGuid().ToString())" -OutFile "$Temp/SHA256SUMS" -UseBasicParsing
         $Checksums = Get-Content -LiteralPath "$Temp/SHA256SUMS" -Raw
         $Pattern = '(?m)^([a-f0-9]{64})\s+' + [regex]::Escape($Asset) + '\s*$'
         $Match = [regex]::Match($Checksums, $Pattern)
         if (-not $Match.Success) { throw 'Missing or invalid release checksum.' }
+        # Bind the asset cache to its verified release digest, even within the same alpha tag.
+        Invoke-WebRequest "$Base/${Asset}?sha256=$($Match.Groups[1].Value)" -OutFile "$Temp/$Asset" -UseBasicParsing
         $Actual = (Get-FileHash "$Temp/$Asset" -Algorithm SHA256).Hash.ToLower()
         if ($Actual -ne $Match.Groups[1].Value) { throw 'Release checksum mismatch.' }
         Expand-Archive "$Temp/$Asset" "$Temp/unpacked"

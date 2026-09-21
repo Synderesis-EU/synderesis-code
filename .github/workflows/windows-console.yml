@@ -1,0 +1,27 @@
+name: Windows CMD console verification
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Run containing the loopback test-only executable
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  console:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download test-only executable
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN: ${{ inputs.build_run }}
+        run: gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-loopback-test-only --dir fixture
+      - name: Verify CMD interactive startup and exit
+        shell: pwsh
+        run: |
+          python -m pip install pywinpty==3.0.3
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path fixture/synderesis-code.exe).Path
+          python synderesis/check_cmd_startup.py

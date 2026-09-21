@@ -30,7 +30,7 @@ def main():
                 try:
                     while process.isalive():
                         output.put(process.read(4096))
-                except EOFError:
+                except (EOFError, OSError):
                     pass
 
             reader = threading.Thread(target=read, daemon=True)
@@ -48,7 +48,10 @@ def main():
                         break
                 assert 'Resume session' in text and 'Quit' in text, repr(text[-3000:])
                 assert 'Synderesis Code' in text, 'Branded terminal title missing'
-                process.write('\x11')  # Ctrl+Q, the normal interactive Quit shortcut.
+                # The existing Quit shortcut requires a second press to confirm.
+                process.write('\x11')
+                time.sleep(0.2)
+                process.write('\x11')
                 deadline = time.monotonic() + 10
                 while process.isalive() and time.monotonic() < deadline:
                     time.sleep(0.1)

@@ -1,0 +1,65 @@
+name: Windows ARM model-call verification
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Successful production Windows build run
+        required: true
+      protocol_run:
+        description: Successful Windows test-binary run of the same source
+        required: true
+      revision:
+        description: Exact runtime revision to verify
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  arm-model-call:
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify artifact provenance
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN: ${{ inputs.build_run }}
+          PROTOCOL_RUN: ${{ inputs.protocol_run }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:REVISION -notmatch '^[a-f0-9]{40}$') { throw 'Invalid source revision' }
+          foreach ($Run in @(@{ Id = $env:BUILD_RUN; File = 'windows.yml' }, @{ Id = $env:PROTOCOL_RUN; File = 'windows-protocol.yml' })) {
+            if ($Run.Id -notmatch '^\d+$') { throw 'Invalid run id' }
+            $Metadata = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $Metadata.conclusion -ne 'success' -or $Metadata.head_sha -ne $env:REVISION -or $Metadata.path -ne ".github/workflows/$($Run.File)") { throw 'Artifact provenance mismatch' }
+          }
+          gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-windows-x86_64 --dir fixture
+          if ($LASTEXITCODE -ne 0) { throw 'Production artifact download failed' }
+          gh run download $env:PROTOCOL_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-loopback-test-only --dir test-binary
+          if ($LASTEXITCODE -ne 0) { throw 'Test artifact download failed' }
+      - name: Verify production x64 executable on Windows ARM
+        shell: pwsh
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'Arm64') { throw 'This test requires real Windows ARM' }
+          Expand-Archive fixture/synderesis-code-windows-x86_64.zip fixture/production
+          if ((Get-Content fixture/production/BUILD-COMMIT.txt -Raw).Trim() -ne $env:REVISION) { throw 'Wrong packaged source' }
+          $env:SYNDERESIS_API_KEY = 'synthetic-arm-startup-check'
+          $env:SYNDERESIS_CODE_HOME = "$env:RUNNER_TEMP/arm-startup-state"
+          & ./fixture/production/synderesis-code.exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'ARM-emulated version failed' }
+          & ./fixture/production/synderesis-code.exe --help
+          if ($LASTEXITCODE -ne 0) { throw 'ARM-emulated help failed' }
+      - name: Exercise model request and tool response under ARM emulation
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
+          python synderesis/check_tool_roundtrip.py
+          if ($LASTEXITCODE -ne 0) { throw 'ARM model/tool roundtrip failed' }
+          $env:SYNDERESIS_FIXTURE_MODELS_UNAVAILABLE = '1'
+          python synderesis/check_tool_roundtrip.py
+          if ($LASTEXITCODE -ne 0) { throw 'ARM unavailable-catalog roundtrip failed' }

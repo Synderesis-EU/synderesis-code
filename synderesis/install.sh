@@ -28,7 +28,8 @@ main() {
   tar -xzf "$temp/$asset" -C "$temp/unpacked" --strip-components=1
   install_dir="${SYNDERESIS_INSTALL_DIR:-$HOME/.local/bin}"
   mkdir -p "$install_dir"
-  "$temp/unpacked/synderesis-code" --version
+  # Version-only probes must not request access to the user's saved Keychain login.
+  SYNDERESIS_API_KEY=synderesis-installer-version-check "$temp/unpacked/synderesis-code" --version
   install -m 755 "$temp/unpacked/synderesis-code" "$install_dir/.synderesis-code.new"
   mv -f "$install_dir/.synderesis-code.new" "$install_dir/synderesis-code"
   printf '\nInstalled to %s/synderesis-code\n' "$install_dir"

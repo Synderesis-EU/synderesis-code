@@ -1,0 +1,68 @@
+name: Stage verified Windows release assets
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        required: true
+      protocol_run:
+        required: true
+      revision:
+        required: true
+      archive_sha256:
+        required: true
+      source_sha256:
+        required: true
+permissions:
+  actions: read
+  contents: write
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify completed runs and stage exact assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_RUN: ${{ inputs.build_run }}
+          PROTOCOL_RUN: ${{ inputs.protocol_run }}
+          REVISION: ${{ inputs.revision }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          SOURCE_SHA256: ${{ inputs.source_sha256 }}
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, re, subprocess, urllib.request, zipfile
+          def gh(*args):
+              return subprocess.check_output(['gh', *args], text=True)
+          def digest(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+          revision = os.environ['REVISION']
+          assert re.fullmatch(r'[0-9a-f]{40}', revision)
+          for key in ['ARCHIVE_SHA256', 'SOURCE_SHA256']:
+              assert re.fullmatch(r'[0-9a-f]{64}', os.environ[key])
+          repo = os.environ['GH_REPO']
+          for key, workflow in [('BUILD_RUN', 'windows.yml'), ('PROTOCOL_RUN', 'windows-protocol.yml')]:
+              run_id = os.environ[key]
+              assert run_id.isdecimal()
+              run = json.loads(gh('api', f'repos/{repo}/actions/runs/{run_id}'))
+              assert run['head_sha'] == revision and run['conclusion'] == 'success'
+              assert run['head_branch'] == 'main' and run['event'] == 'workflow_dispatch'
+              assert run['path'] == f'.github/workflows/{workflow}'
+          gh('run', 'download', os.environ['BUILD_RUN'], '--name', 'synderesis-code-windows-x86_64', '--dir', 'artifact')
+          archive = pathlib.Path('artifact/synderesis-code-windows-x86_64.zip')
+          assert digest(archive) == os.environ['ARCHIVE_SHA256']
+          with zipfile.ZipFile(archive) as package:
+              assert package.read('BUILD-COMMIT.txt').decode('utf-8-sig').strip() == revision
+              assert b'SYNDERESIS_CODE_TEST_BASE_URL' not in package.read('synderesis-code.exe')
+          tag = 'v0.1.0-alpha.1'
+          release = json.loads(gh('api', f'repos/{repo}/releases/tags/{tag}'))
+          source_name = 'synderesis-code-0.1.0-alpha.1-source.tar.gz'
+          source_asset = next(a for a in release['assets'] if a['name'] == source_name and a['digest'] == 'sha256:' + os.environ['SOURCE_SHA256'])
+          source = pathlib.Path('synderesis-code-0.1.0-alpha.1-windows-source.tar.gz.pending-windows-fix')
+          urllib.request.urlretrieve(source_asset['browser_download_url'] + '?sha256=' + os.environ['SOURCE_SHA256'], source)
+          assert digest(source) == os.environ['SOURCE_SHA256']
+          staged = pathlib.Path('synderesis-code-0.1.0-alpha.1-windows-x86_64.zip.pending-windows-fix')
+          archive.rename(staged)
+          # Staging only: the operator verifies GitHub digests and swaps assets/manifest last.
+          gh('release', 'upload', tag, str(staged), str(source))
+          print('Verified Windows package and matching source staged successfully.')

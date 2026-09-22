@@ -3314,6 +3314,8 @@ fn synderesis_model(base_url: &str, endpoints: &EndpointsConfig) -> ModelEntry {
         api_backend: Some(ApiBackend::Responses),
         context_window: Some(500_000),
         max_completion_tokens: Some(32_768),
+        supports_reasoning_effort: Some(true),
+        reasoning_effort: Some(ReasoningEffort::High),
         supports_backend_search: Some(false),
         inference_idle_timeout_secs: Some(240),
         ..Default::default()

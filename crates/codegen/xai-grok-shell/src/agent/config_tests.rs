@@ -8462,6 +8462,8 @@ fn synderesis_product_model_survives_missing_empty_and_stale_catalogs() {
         assert_eq!(model.env_key.as_ref().and_then(EnvKeys::primary), Some("SYNDERESIS_API_KEY"));
         assert_eq!(model.context_window.get(), 500_000);
         assert_eq!(model.max_completion_tokens, Some(32_768));
+        assert!(model.supports_reasoning_effort);
+        assert_eq!(model.reasoning_effort, Some(ReasoningEffort::High));
         assert_eq!(model.api_backend, ApiBackend::Responses);
         let mut selection_cfg = cfg.clone();
         selection_cfg.config_models.clear();

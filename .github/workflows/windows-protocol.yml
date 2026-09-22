@@ -62,6 +62,12 @@ jobs:
         run: |
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
           python "$env:RUNNER_TEMP/verification/check_tool_roundtrip.py"
+      - name: Exercise startup with unavailable model catalog
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
+          $env:SYNDERESIS_FIXTURE_MODELS_UNAVAILABLE = '1'
+          python "$env:RUNNER_TEMP/verification/check_tool_roundtrip.py"
       - name: Exercise native CMD interactive interface
         shell: pwsh
         run: |

@@ -8435,3 +8435,38 @@ async fn process_key_from_model_env_key() {
         Some(TOKEN)
     );
 }
+
+#[test]
+fn synderesis_product_model_survives_missing_empty_and_stale_catalogs() {
+    let raw: toml::Value = toml::from_str(r#"
+        [models]
+        default = "synderesis-code"
+        allowed_models = ["synderesis-code"]
+        [model.synderesis-code]
+        model = "wrong-model"
+        base_url = "https://wrong.example/v1"
+        api_key = "fake-test-key"
+    "#).unwrap();
+    let mut cfg = Config::new_from_toml_cfg(&raw).unwrap();
+    let base = "https://www.synderesis.eu/v1/code";
+    cfg.endpoints.models_base_url = Some(base.into());
+    let stale = IndexMap::from([("synderesis-code".into(), synderesis_model("https://stale.example/v1", &cfg.endpoints))]);
+    for fetched in [None, Some(IndexMap::new()), Some(stale)] {
+        let catalog = resolve_model_list_with_product(&cfg, fetched, Some(base));
+        let model = catalog.get("synderesis-code").expect("product model must exist even before catalog fetch");
+        assert_eq!(model.model, "synderesis-code");
+        assert_eq!(model.name.as_deref(), Some("Synderesis Code"));
+        assert_eq!(model.base_url, base);
+        assert_eq!(model.api_base_url.as_deref(), Some(base));
+        assert!(model.api_key.is_none());
+        assert_eq!(model.env_key.as_ref().and_then(EnvKeys::primary), Some("SYNDERESIS_API_KEY"));
+        assert_eq!(model.context_window.get(), 500_000);
+        assert_eq!(model.max_completion_tokens, Some(32_768));
+        assert_eq!(model.api_backend, ApiBackend::Responses);
+        let mut selection_cfg = cfg.clone();
+        selection_cfg.config_models.clear();
+        let selectable = crate::agent::remote_config::resolve_model_catalog(&selection_cfg, Some(catalog));
+        assert!(!crate::agent::remote_config::allowlist_matches_nothing(&selection_cfg, &selectable));
+        crate::agent::remote_config::validate_selectable(&selection_cfg, &selectable).unwrap();
+    }
+}

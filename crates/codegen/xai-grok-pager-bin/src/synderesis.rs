@@ -47,17 +47,14 @@ pub fn configure() -> Result<()> {
         }
         value
     };
+    xai_grok_shell::agent::config::configure_synderesis_model(base_url.clone());
     let config = serde_json::json!({
         "cli": {"auto_update": false},
         "telemetry": {"enabled": false, "otel_enabled": false},
         "relay": {"enabled": false},
         "compat": {"claude": {"mcps": false, "hooks": false}, "cursor": {"mcps": false, "hooks": false}},
         "models": {"default": "synderesis-code", "allowed_models": ["synderesis-code"],
-            "web_search": "synderesis-code", "session_summary": "synderesis-code", "image_description": "synderesis-code", "prompt_suggestion": "synderesis-code"},
-        "model": {"synderesis-code": {"model": "synderesis-code", "name": "Synderesis Code", "api_backend": "responses",
-            "base_url": base_url, "env_key": "SYNDERESIS_API_KEY",
-            "context_window": 500000, "max_completion_tokens": 32768, "supports_backend_search": false,
-            "inference_idle_timeout_secs": 240}}
+            "web_search": "synderesis-code", "session_summary": "synderesis-code", "image_description": "synderesis-code", "prompt_suggestion": "synderesis-code"}
     });
     // Runs at the very beginning of main, before threads or the async runtime exist.
     unsafe {

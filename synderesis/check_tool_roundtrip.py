@@ -29,6 +29,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if os.environ.get('SYNDERESIS_FIXTURE_MODELS_UNAVAILABLE') == '1':
+            self.send_error(503, 'Synthetic catalog outage')
+            return
         self.send(json.dumps({'object': 'list', 'data': [{'id': 'synderesis-code', 'object': 'model', 'created': 1, 'owned_by': 'synderesis',
             'model': 'synderesis-code', 'api_backend': 'responses', 'context_window': 500000, 'max_completion_tokens': 32768}]}).encode())
 

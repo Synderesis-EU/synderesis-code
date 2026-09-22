@@ -3294,11 +3294,46 @@ fn managed_settings_env_flag(key: &str) -> Option<bool> {
     let json: serde_json::Value = serde_json::from_str(&content).ok()?;
     xai_grok_workspace::permission::resolution::json_env_flag(json.get("env"), key)
 }
+// Product bootstrap is trusted compiled configuration, not an environment overlay.
+// GROK_CONFIG deliberately strips endpoint-bearing model tables.
+static SYNDERESIS_MODEL_BASE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+pub fn configure_synderesis_model(base_url: String) {
+    SYNDERESIS_MODEL_BASE
+        .set(base_url)
+        .expect("product model configured once before startup");
+}
+
+fn synderesis_model(base_url: &str, endpoints: &EndpointsConfig) -> ModelEntry {
+    ConfigModelOverride {
+        model: Some("synderesis-code".into()),
+        name: Some("Synderesis Code".into()),
+        base_url: Some(base_url.into()),
+        api_base_url: Some(base_url.into()),
+        env_key: Some(EnvKeys::single("SYNDERESIS_API_KEY")),
+        api_backend: Some(ApiBackend::Responses),
+        context_window: Some(500_000),
+        max_completion_tokens: Some(32_768),
+        supports_backend_search: Some(false),
+        inference_idle_timeout_secs: Some(240),
+        ..Default::default()
+    }
+    .apply("synderesis-code", None, endpoints)
+}
+
 /// Assemble the final model map. Priority (highest wins):
-/// config.toml `[model.*]` > prefetched (remote) > hardcoded defaults.
+/// Compiled product route > config.toml `[model.*]` > prefetched (remote) > defaults.
 pub(crate) fn resolve_model_list(
     cfg: &Config,
     prefetched: Option<IndexMap<String, ModelEntry>>,
+) -> IndexMap<String, ModelEntry> {
+    resolve_model_list_with_product(cfg, prefetched, SYNDERESIS_MODEL_BASE.get().map(String::as_str))
+}
+
+fn resolve_model_list_with_product(
+    cfg: &Config,
+    prefetched: Option<IndexMap<String, ModelEntry>>,
+    product_base: Option<&str>,
 ) -> IndexMap<String, ModelEntry> {
     let mut resolved: IndexMap<String, ModelEntry> = IndexMap::new();
     if cfg.endpoints.has_custom_endpoint() {
@@ -3457,6 +3492,9 @@ pub(crate) fn resolve_model_list(
     }
     apply_global_extra_headers(&mut resolved, &cfg.models);
     apply_global_scalar_defaults(&mut resolved, &cfg.models);
+    if let Some(base_url) = product_base {
+        resolved.insert("synderesis-code".into(), synderesis_model(base_url, &cfg.endpoints));
+    }
     for entry in resolved.values_mut() {
         entry.info.derive_reasoning_effort_fields();
     }

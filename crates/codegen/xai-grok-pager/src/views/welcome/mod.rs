@@ -3548,8 +3548,8 @@ mod tests {
 
     #[test]
     fn hero_box_moves_up_only_once_the_flex_gap_is_gone() {
-        // 90x26: an 11-row box, a one-row flex gap and an 11-row prompt fit exactly (min_content_height 25)
-        let area = Rect::new(0, 0, 90, 26);
+        // Reserve the full artwork, borders, padding, and an 11-row draft with one slack row.
+        let area = Rect::new(0, 0, 90, logo::full_logo_line_count() + 19);
         let input = |prompt_height| WelcomeLayoutInput {
             content_area: area,
             menu_height: 4,
@@ -3567,7 +3567,7 @@ mod tests {
 
     #[test]
     fn hero_box_yields_to_stacked_when_the_draft_needs_its_rows() {
-        // 26 rows fit the 11-row box beside a one-line prompt, not beside a 13-row draft
+        // 26 rows fit the full-art box beside a one-line prompt, not beside a 13-row draft
         let area = Rect::new(0, 0, 90, 26);
         let input = |prompt_height| WelcomeLayoutInput {
             content_area: area,
@@ -3580,7 +3580,7 @@ mod tests {
         assert_eq!(max, 13);
         let tall = WelcomeLayout::compute(input(Some(max)));
         assert!(!tall.has_hero_box());
-        // Compact logo 5 + gap 1 + menu 4 + flex 1 + prompt 13 + version 2 = 26 fits exactly
+        // The compact two-row logo leaves all menu, draft, and version rows available.
         assert_eq!(tall.logo_tier, LogoTier::Compact);
         assert_places_every_row(&tall, &input(Some(max)));
     }
@@ -3597,34 +3597,26 @@ mod tests {
         };
         let one_line = WelcomeLayout::compute(input(None));
         assert_eq!(one_line.logo_tier, LogoTier::Compact);
-        // Compact logo 5 + gap 1 + menu 4 + flex 1 + prompt + version 2 = 13 + prompt: fits up to a 9-row draft
-        // The one-line layout has a 5-row flex gap, so the first 4 extra rows move nothing; the next two shift the column up
-        for extra in 1..=6u16 {
+        // The two-row compact art leaves a seven-row gap before the one-line prompt.
+        for extra in 1..=8u16 {
             let layout = WelcomeLayout::compute(input(Some(PROMPT_HEIGHT + extra)));
             assert_eq!(layout.logo_tier, LogoTier::Compact, "{extra} extra rows");
-            if extra <= 4 {
-                assert_eq!(
-                    layout.logo, one_line.logo,
-                    "{extra} extra rows: the logo holds still"
-                );
-                assert_eq!(
-                    layout.menu.y, one_line.menu.y,
-                    "{extra} extra rows: the menu holds still"
-                );
-            } else {
-                assert_eq!(
-                    layout.logo.y,
-                    one_line.logo.y - (extra - 4),
-                    "{extra} extra rows"
-                );
-            }
+            assert_eq!(
+                layout.logo.y,
+                one_line.logo.y.saturating_sub(extra.saturating_sub(6)),
+                "the draft consumes the flex gap before moving the logo"
+            );
             assert_places_every_row(&layout, &input(Some(PROMPT_HEIGHT + extra)));
         }
         let max = prompt_max_height(&input(None));
         assert_eq!(max, 11);
         let tall = WelcomeLayout::compute(input(Some(max)));
-        assert_eq!(tall.logo_tier, LogoTier::Hidden);
+        assert_eq!(tall.logo_tier, LogoTier::Compact);
         assert_places_every_row(&tall, &input(Some(max)));
+        // Beyond the normal draft cap, the tier still yields when its rows cannot fit.
+        let overflowing = WelcomeLayout::compute(input(Some(13)));
+        assert_eq!(overflowing.logo_tier, LogoTier::Hidden);
+        assert_places_every_row(&overflowing, &input(Some(13)));
     }
 
     /// 80x33: the full logo fits beside every draft up to the cap, so it never steps down.
@@ -3726,9 +3718,9 @@ mod tests {
     /// The consent screen passes 0 prompt rows and must sit exactly where it did before the composer could grow.
     #[test]
     fn zero_row_prompt_is_not_charged_for_a_one_line_box_when_centering() {
-        // 80x28, a 9-row body, a 2-row menu: full logo 7 + gap 1 + gap 1 + body 9 leaves 10 rows
+        // Full art + gap 1 + gap 1 + body 9 leaves 10 rows for centering.
         // (10 - 4 - 2) / 3 = 1 with the zero-row box; a phantom 3-row box would give (10 - 4 - 5) / 3 = 0
-        let area = Rect::new(0, 0, 80, 28);
+        let area = Rect::new(0, 0, 80, logo::full_logo_line_count() + 21);
         let layout = WelcomeLayout::compute_stacked(WelcomeLayoutInput {
             content_area: area,
             error_height: 9,
@@ -3787,22 +3779,6 @@ mod tests {
         }
     }
 
-    /// Rows of the painted buffer that hold braille logo art.
-    fn painted_logo_rows(buf: &Buffer) -> u16 {
-        let area = buf.area;
-        (area.top()..area.bottom())
-            .filter(|&y| {
-                (area.left()..area.right()).any(|x| {
-                    buf.cell((x, y))
-                        .map(|c| c.symbol())
-                        .unwrap_or("")
-                        .chars()
-                        .any(|c| ('\u{2800}'..='\u{28FF}').contains(&c))
-                })
-            })
-            .count() as u16
-    }
-
     /// End to end: a draft that steps the logo tier down paints the compact art, not the full art clipped into fewer rows.
     #[test]
     fn render_welcome_paints_the_logo_tier_the_draft_leaves_room_for() {
@@ -3817,13 +3793,16 @@ mod tests {
 
         let mut buf = Buffer::empty(area);
         let _ = render_welcome(area, &mut buf, &params, &mut prompt, &mut picker);
-        assert_eq!(painted_logo_rows(&buf), logo::full_logo_line_count());
+        assert!(buffer_text(&buf).contains(".  C  O  D  E  ."));
+        assert!(!buffer_text(&buf).contains("SYNDERESIS CODE"));
 
         prompt.set_text(&["line"; 30].join("\n"));
         let mut buf = Buffer::empty(area);
         let tall = render_welcome(area, &mut buf, &params, &mut prompt, &mut picker);
         assert_eq!(tall.prompt_rect.map(|r| r.height), Some(13));
-        assert_eq!(painted_logo_rows(&buf), logo::compact_logo_line_count());
+        assert!(buffer_text(&buf).contains("SYNDERESIS CODE"));
+        assert!(buffer_text(&buf).contains("Understand deeply. Build deliberately."));
+        assert!(!buffer_text(&buf).contains(".  C  O  D  E  ."));
     }
 
     #[test]
@@ -3984,9 +3963,7 @@ mod tests {
 
     #[test]
     fn hero_box_height_accounts_for_borders_and_padding() {
-        // At h >= 26, logo07 is used (7 lines). With menu_height=3:
-        // right_col = 2 + 0 + 0 + 1 + 3 = 6, inner = max(7, 6) = 7.
-        // hero_box_height = 2 (borders) + 2 (v_pad) + 7 = 11.
+        // Full art or six menu rows, plus two borders and two padding rows.
         let area = Rect::new(0, 0, 100, 50);
         let layout = WelcomeLayout::compute(WelcomeLayoutInput {
             content_area: area,
@@ -3994,7 +3971,7 @@ mod tests {
             ..Default::default()
         });
         assert!(layout.has_hero_box());
-        assert_eq!(layout.hero_box.height, 11);
+        assert_eq!(layout.hero_box.height, 4 + logo::full_logo_line_count().max(6));
     }
 
     #[test]
@@ -4071,7 +4048,7 @@ mod tests {
     fn hero_box_announcement_clamped_when_tight() {
         // A real announcement can't disable the hero box: the slot is clamped to whatever still fits (the renderer trails a `…`)
         // The box stays active rather than falling back to the stacked layout
-        let area = Rect::new(0, 0, 100, 17);
+        let area = Rect::new(0, 0, 100, logo::full_logo_line_count() + 10);
         let a = long_ann();
         let without = WelcomeLayout::compute(WelcomeLayoutInput {
             content_area: area,
@@ -4394,7 +4371,7 @@ the usual channels. "
         let area = Rect::new(0, 0, 100, 32);
         let ann = xai_grok_announcements::RemoteAnnouncement {
             title: Some("Upgrade".into()),
-            message: Some("SuperGrok Heavy is available for your team today.".into()),
+            message: Some("Update ready.".into()),
             ..Default::default()
         };
         let input = |prompt_height| WelcomeLayoutInput {

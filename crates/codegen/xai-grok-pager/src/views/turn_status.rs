@@ -1,8 +1,8 @@
 //! Turn status line: a single-row widget showing the current turn activity.
 //!
-//! Layout: `⠧ Run command 0.2s              1m20s ⇣12k [stop]`
+//! Layout: `><(((o>                   Run command 0.2s              1m20s ⇣12k [stop]`
 //!
-//! - Spinner (left, slowed to ~7.5fps)
+//! - Swim loader (left, 24 columns, 160ms/frame) plus two spaces
 //! - Activity label (colored per activity type, truncates if needed)
 //! - Phase timer `Xs` (gray, never truncates)
 //! - Queued-send hint `· N queued, Enter to send now` (gray, sendable waits only)
@@ -361,21 +361,6 @@ pub fn render_turn_status(
 
     let right_width = turn_timer_width + bg_width + cancel_width;
 
-    // ── Build components ──
-    // While a tool is blocked on a permission prompt or `ask_user_question`, swap the running braille spinner for a pulsing `◆`
-    // The drain-blocked and plan-approval indicators already use this animation, so every "your turn" status reads with one consistent visual cue
-    let spinner_str = if is_pending_user_input {
-        format!("{} ", crate::glyphs::diamond_filled())
-    } else {
-        let frames = crate::glyphs::braille_spinner_frames();
-        let frame_idx = (tick / SPINNER_DIVISOR) as usize % frames.len();
-        match frames.get(frame_idx) {
-            Some(frame) => format!("{frame} "),
-            None => String::new(),
-        }
-    };
-    let spinner_width = spinner_str.width();
-
     // "Ask" tools (AskUserQuestion): suppress the phase timer so the user doesn't feel time-pressured while answering questions
     let is_asking = is_tool
         && matches!(
@@ -393,6 +378,32 @@ pub fn render_turn_status(
             .unwrap_or_default()
     };
     let phase_timer_width = phase_timer_str.width();
+
+    // Reserve readable activity text and controls before adding the wide animation.
+    let queued_suffix = if !is_tool && held_queue > 0 && is_sendable_wait(activity) {
+        if held_queue_top_sendable {
+            format!(" · {held_queue} queued, Enter to send now")
+        } else {
+            format!(" · {held_queue} queued")
+        }
+    } else {
+        String::new()
+    };
+    let label_reserve = if !queued_suffix.is_empty() {
+        label.width() + queued_suffix.width()
+    } else if is_tool {
+        12
+    } else {
+        label.width().min(12)
+    };
+    let animation_width =
+        (area.width as usize).saturating_sub(right_width + phase_timer_width + label_reserve + 3);
+    let spinner_str = if is_pending_user_input {
+        format!("{} ", crate::glyphs::diamond_filled())
+    } else {
+        swim_working_indicator(tick, turn_elapsed, animation_width as u16)
+    };
+    let spinner_width = spinner_str.width();
 
     // Timer style (gray for both phase and turn timers). A Style with bg:None (the default) cannot
     // restore bg after a reset, and a Style without remove_modifier cannot clear leaked modifiers.
@@ -487,15 +498,7 @@ pub fn render_turn_status(
         }
     } else {
         // "Enter to send now" is advertised only when Enter would actually send the top row.
-        let suffix = if held_queue > 0 && is_sendable_wait(activity) {
-            if held_queue_top_sendable {
-                format!(" · {held_queue} queued, Enter to send now")
-            } else {
-                format!(" · {held_queue} queued")
-            }
-        } else {
-            String::new()
-        };
+        let suffix = queued_suffix;
         if !suffix.is_empty() && label.width() + suffix.width() <= available_for_label {
             left_spans.push(Span::styled(label.clone(), activity_style));
             queued_hint = Some(Span::styled(suffix, Style::default().fg(theme.gray)));
@@ -697,6 +700,22 @@ fn compute_activity(
     }
 }
 
+fn swim_working_indicator(tick: u64, turn_elapsed: Option<Duration>, area_width: u16) -> String {
+    let frames = crate::glyphs::synderesis_swim_frames();
+    let field = crate::glyphs::SYNDERESIS_SWIM_WIDTH;
+    if (area_width as usize) < field.saturating_add(2) {
+        return String::new();
+    }
+    let idx = match turn_elapsed {
+        Some(d) => (d.as_millis() / crate::glyphs::SYNDERESIS_SWIM_INTERVAL_MS) as usize,
+        None => (tick / 5) as usize,
+    } % frames.len();
+    match frames.get(idx) {
+        Some(frame) => format!("{frame}  "),
+        None => String::new(),
+    }
+}
+
 /// Shown from the session create dispatch until the id binds or the create fails.
 fn render_starting_session(
     buf: &mut Buffer,
@@ -705,15 +724,14 @@ fn render_starting_session(
     tick: u64,
     theme: &Theme,
 ) {
-    let frames = crate::glyphs::braille_spinner_frames();
-    let frame_idx = (tick / SPINNER_DIVISOR) as usize % frames.len();
-    let Some(frame) = frames.get(frame_idx) else {
-        return;
-    };
     let timer_str = format!(" {}", format_turn_timer(started.elapsed()));
+    let animation_width = area
+        .width
+        .saturating_sub(("Starting session…".width() + timer_str.width()) as u16);
+    let spinner = swim_working_indicator(tick, Some(started.elapsed()), animation_width);
     let style = Style::default().fg(theme.gray_dim);
     let spans = vec![
-        Span::styled(format!("{frame} "), style),
+        Span::styled(spinner, style),
         Span::styled("Starting session…", style),
         Span::styled(timer_str, style),
     ];
@@ -1525,6 +1543,44 @@ mod tests {
         assert!(
             text.contains("Starting session"),
             "an unanswered session/new must render 'Starting session…', got: {text:?}"
+        );
+    }
+
+    #[test]
+    fn narrow_starting_session_keeps_its_activity_label() {
+        let mut args = idle_args(Watchers::default());
+        args.session_starting_since = Some(Instant::now());
+        let text = render_row_text(args, 24);
+        assert!(text.starts_with("Starting session"), "got: {text:?}");
+        assert!(!text.contains("<((("));
+    }
+
+    #[test]
+    fn narrow_working_row_preserves_activity_and_stop() {
+        let mut args = idle_args(Watchers::default());
+        let activity = Some(TurnActivity::Thinking);
+        args.state = &AgentState::TurnRunning;
+        args.activity = &activity;
+        args.turn_elapsed = Some(Duration::from_secs(3));
+        args.buttons = Some(MouseButtons::default());
+        let text = render_row_text(args, 40);
+        assert!(text.contains("Thinking"), "got: {text:?}");
+        assert!(text.contains("[stop]"), "got: {text:?}");
+        assert!(!text.contains("<((("));
+    }
+
+    #[test]
+    fn swim_uses_elapsed_time_and_wraps_without_changing_width() {
+        let frames = crate::glyphs::synderesis_swim_frames();
+        for (millis, expected) in [(0, 0), (159, 0), (160, 1), (5759, 35), (5760, 0)] {
+            let indicator = swim_working_indicator(999, Some(Duration::from_millis(millis)), 80);
+            assert_eq!(indicator, format!("{}  ", frames[expected]));
+            assert_eq!(indicator.width(), 26);
+        }
+        assert!(swim_working_indicator(0, None, 25).is_empty());
+        assert_eq!(
+            swim_working_indicator(5, None, 80),
+            format!("{}  ", frames[1])
         );
     }
 

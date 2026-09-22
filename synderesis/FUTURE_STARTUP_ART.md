@@ -1,7 +1,9 @@
-# Parked startup art (not wired)
+# Startup art reference
 
-Saved 2026-09-21 after the live CLI work was reverted. Do not load this into the
-shipping binary until a dedicated, tested release.
+Saved 2026-09-21 after the earlier live CLI work was reverted. Restored to local
+source on 2026-09-22 following explicit approval, with narrow-terminal status
+labels preserved. This source change does not publish or replace release assets;
+shipping still requires a verified native build and fresh installer check.
 
 ## Welcome wordmark
 

@@ -69,3 +69,9 @@ jobs:
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
           python synderesis/check_login_roundtrip.py
           if ($LASTEXITCODE -ne 0) { throw 'ARM Synderesis login roundtrip failed' }
+      - name: Verify production HTTPS model route on ARM
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_PRODUCTION_BINARY = (Resolve-Path fixture/production/synderesis-code.exe).Path
+          python synderesis/check_production_transport.py
+          if ($LASTEXITCODE -ne 0) { throw 'ARM production transport failed' }

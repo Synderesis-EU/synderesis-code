@@ -1,14 +1,19 @@
 name: Windows Command Prompt installer
 on:
   workflow_dispatch:
+    inputs:
+      expected_binary_sha256:
+        description: Optional required digest of the publicly installed executable
+        required: false
 permissions:
   contents: read
 jobs:
   cmd:
-    runs-on: windows-2025
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       matrix:
+        os: [windows-2025, windows-11-arm]
         architecture: [x64, x86]
     steps:
       - uses: actions/checkout@v4
@@ -19,4 +24,5 @@ jobs:
         shell: powershell
         env:
           CMD_ARCHITECTURE: ${{ matrix.architecture }}
+          EXPECTED_BINARY_SHA256: ${{ inputs.expected_binary_sha256 }}
         run: ./synderesis/check_cmd_installer.ps1 -Architecture $env:CMD_ARCHITECTURE

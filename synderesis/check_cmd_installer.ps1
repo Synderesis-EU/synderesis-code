@@ -20,6 +20,11 @@ exit /b 0
 if ($LASTEXITCODE -ne 0) { throw 'CMD install or same-window PATH/startup failed' }
 $Installed = Join-Path $env:SYNDERESIS_INSTALL_DIR 'synderesis-code.exe'
 $Before = (Get-FileHash -LiteralPath $Installed -Algorithm SHA256).Hash
+if ($env:EXPECTED_BINARY_SHA256) {
+    if ($env:EXPECTED_BINARY_SHA256 -notmatch '^[a-fA-F0-9]{64}$' -or $Before -ne $env:EXPECTED_BINARY_SHA256) {
+        throw 'Public installer returned a different executable than the verified release'
+    }
+}
 # A file where the install directory should be must fail visibly and nonzero.
 $env:SYNDERESIS_INSTALL_DIR = Join-Path $env:RUNNER_TEMP "cmd-blocked-$Architecture"
 'preserve this file' | Set-Content -LiteralPath $env:SYNDERESIS_INSTALL_DIR -Encoding ascii

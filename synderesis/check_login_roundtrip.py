@@ -69,6 +69,19 @@ class Client:
                 self.errors.append(line)
         threading.Thread(target=errors, daemon=True).start()
 
+    def close(self):
+        if self.process.poll() is None:
+            self.process.stdin.close()
+            try:
+                self.process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.process.terminate()
+                try:
+                    self.process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+                    self.process.wait(timeout=5)
+
     def send(self, method, params):
         self.count += 1
         self.process.stdin.write(json.dumps({'jsonrpc': '2.0', 'id': self.count, 'method': method, 'params': params}) + '\n')
@@ -158,18 +171,15 @@ def main():
             callback(params)
             client.receive(ident)
             prompt(SWITCHED)
+            # Windows holds exclusive locks on runtime state while the agent is alive.
+            client.close()
             for file in Path(directory).rglob('*'):
                 if file.is_file():
                     data = file.read_bytes()
                     assert not any(key.encode() in data for key in (INITIAL, CONNECTED, SWITCHED)), f'Credential persisted in {file.name}'
             print('PASS: interactive Synderesis PKCE login, wrong-state rejection, cancel, existing-session model call, logout, account switch, no plaintext credential files')
         finally:
-            client.process.terminate()
-            try:
-                client.process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                client.process.kill()
-                client.process.wait(timeout=5)
+            client.close()
             server.shutdown()
             server.server_close()
 

@@ -1,4 +1,5 @@
-name: Windows ARM model-call verification
+name: Windows model-call and login verification
+run-name: Windows runtime ${{ inputs.revision }} production ${{ inputs.build_run }} protocol ${{ inputs.protocol_run }}
 on:
   workflow_dispatch:
     inputs:
@@ -16,7 +17,10 @@ permissions:
   actions: read
 jobs:
   arm-model-call:
-    runs-on: windows-11-arm
+    strategy:
+      matrix:
+        os: [windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +37,14 @@ jobs:
           foreach ($Run in @(@{ Id = $env:BUILD_RUN; File = 'windows.yml' }, @{ Id = $env:PROTOCOL_RUN; File = 'windows-protocol.yml' })) {
             if ($Run.Id -notmatch '^\d+$') { throw 'Invalid run id' }
             $Metadata = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)" | ConvertFrom-Json
-            if ($LASTEXITCODE -ne 0 -or $Metadata.conclusion -ne 'success' -or $Metadata.head_sha -ne $env:REVISION -or $Metadata.path -ne ".github/workflows/$($Run.File)") { throw 'Artifact provenance mismatch' }
+            if ($LASTEXITCODE -ne 0 -or $Metadata.head_sha -ne $env:REVISION -or $Metadata.path -ne ".github/workflows/$($Run.File)") { throw 'Artifact provenance mismatch' }
+            if ($Metadata.head_branch -ne 'main' -or $Metadata.event -ne 'workflow_dispatch') { throw 'Unexpected artifact source' }
+            if ($Run.File -eq 'windows.yml' -and $Metadata.conclusion -ne 'success') { throw 'Production build did not pass' }
+            if ($Run.File -eq 'windows-protocol.yml') {
+              $Jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)/jobs" | ConvertFrom-Json
+              $Compiled = @($Jobs.jobs.steps | Where-Object { $_.name -eq 'Build isolated test binary' -and $_.conclusion -eq 'success' })
+              if ($LASTEXITCODE -ne 0 -or $Compiled.Count -ne 1) { throw 'Test binary compilation was not successful' }
+            }
           }
           gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-windows-x86_64 --dir fixture
           if ($LASTEXITCODE -ne 0) { throw 'Production artifact download failed' }
@@ -45,7 +56,7 @@ jobs:
           REVISION: ${{ inputs.revision }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'Arm64') { throw 'This test requires real Windows ARM' }
+          if ('${{ matrix.os }}' -eq 'windows-11-arm' -and [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'Arm64') { throw 'This test requires real Windows ARM' }
           Expand-Archive fixture/synderesis-code-windows-x86_64.zip fixture/production
           if ((Get-Content fixture/production/BUILD-COMMIT.txt -Raw).Trim() -ne $env:REVISION) { throw 'Wrong packaged source' }
           $env:SYNDERESIS_API_KEY = 'synthetic-arm-startup-check'
@@ -75,3 +86,13 @@ jobs:
           $env:SYNDERESIS_CODE_PRODUCTION_BINARY = (Resolve-Path fixture/production/synderesis-code.exe).Path
           python synderesis/check_production_transport.py
           if ($LASTEXITCODE -ne 0) { throw 'ARM production transport failed' }
+      - name: Exercise native CMD startup and literal /login
+        if: matrix.os == 'windows-2025'
+        shell: pwsh
+        run: |
+          python -m pip install pywinpty==3.0.3
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
+          python synderesis/check_cmd_startup.py
+          if ($LASTEXITCODE -ne 0) { throw 'CMD startup failed' }
+          python synderesis/check_interactive_login.py
+          if ($LASTEXITCODE -ne 0) { throw 'CMD /login failed' }

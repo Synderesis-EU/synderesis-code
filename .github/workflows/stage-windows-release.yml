@@ -8,6 +8,8 @@ on:
         required: true
       revision:
         required: true
+      verification_run:
+        required: true
       archive_sha256:
         required: true
       source_sha256:
@@ -27,6 +29,7 @@ jobs:
           BUILD_RUN: ${{ inputs.build_run }}
           PROTOCOL_RUN: ${{ inputs.protocol_run }}
           REVISION: ${{ inputs.revision }}
+          VERIFICATION_RUN: ${{ inputs.verification_run }}
           ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
           SOURCE_SHA256: ${{ inputs.source_sha256 }}
         shell: python
@@ -45,15 +48,27 @@ jobs:
               run_id = os.environ[key]
               assert run_id.isdecimal()
               run = json.loads(gh('api', f'repos/{repo}/actions/runs/{run_id}'))
-              assert run['head_sha'] == revision and run['conclusion'] == 'success'
+              assert run['head_sha'] == revision
+              if key == 'BUILD_RUN':
+                  assert run['conclusion'] == 'success'
+              else:
+                  jobs = json.loads(gh('api', f'repos/{repo}/actions/runs/{run_id}/jobs'))
+                  assert any(s['name'] == 'Build isolated test binary' and s['conclusion'] == 'success' for j in jobs['jobs'] for s in j['steps'])
               assert run['head_branch'] == 'main' and run['event'] == 'workflow_dispatch'
               assert run['path'] == f'.github/workflows/{workflow}'
+          verification_id = os.environ['VERIFICATION_RUN']
+          assert verification_id.isdecimal()
+          verification = json.loads(gh('api', f'repos/{repo}/actions/runs/{verification_id}'))
+          assert verification['conclusion'] == 'success' and verification['head_branch'] == 'main'
+          assert verification['event'] == 'workflow_dispatch' and verification['path'] == '.github/workflows/windows-arm.yml'
+          expected_title = f"Windows runtime {revision} production {os.environ['BUILD_RUN']} protocol {os.environ['PROTOCOL_RUN']}"
+          assert verification['display_title'] == expected_title
           gh('run', 'download', os.environ['BUILD_RUN'], '--name', 'synderesis-code-windows-x86_64', '--dir', 'artifact')
           archive = pathlib.Path('artifact/synderesis-code-windows-x86_64.zip')
           assert digest(archive) == os.environ['ARCHIVE_SHA256']
           with zipfile.ZipFile(archive) as package:
               assert package.read('BUILD-COMMIT.txt').decode('utf-8-sig').strip() == revision
-              assert b'SYNDERESIS_CODE_TEST_BASE_URL' not in package.read('synderesis-code.exe')
+              assert all(k not in package.read('synderesis-code.exe') for k in [b'SYNDERESIS_CODE_TEST_BASE_URL', b'SYNDERESIS_CODE_TEST_AUTH_ORIGIN'])
           tag = 'v0.1.0-alpha.1'
           release = json.loads(gh('api', f'repos/{repo}/releases/tags/{tag}'))
           source_name = 'synderesis-code-0.1.0-alpha.1-source.tar.gz'

@@ -1,5 +1,6 @@
 """Exercise the literal /login command in a native terminal using synthetic auth."""
 import os
+import gc
 from pathlib import Path
 import queue
 import re
@@ -20,11 +21,15 @@ def main():
                    SYNDERESIS_CODE_TEST_AUTH_ORIGIN=f'http://127.0.0.1:{server.server_port}', TERM='xterm-256color')
         if os.name == 'nt':
             from winpty import PtyProcess
-            process = PtyProcess.spawn('cmd.exe /d /s /c "' + '"' + binary + '"' + '"', cwd=directory, env=env, dimensions=(40, 160))
+            env['PATH'] = str(Path(binary).parent) + os.pathsep + env['PATH']
+            process = PtyProcess.spawn('cmd.exe /d /c synderesis-code', cwd=directory, env=env, dimensions=(40, 160))
             read = lambda: process.read(65536)
-            write = process.write
-            alive = process.isalive
-            close = lambda: process.close(force=True)
+            write = lambda text: process.write(text)
+            alive = lambda: process.isalive()
+            def close():
+                # isalive() marks the wrapper closed before ConPTY releases its handles.
+                process.closed = False
+                process.close(force=True)
         else:
             import fcntl
             import pty
@@ -50,7 +55,8 @@ def main():
                     output.put(read())
             except (OSError, EOFError):
                 pass
-        threading.Thread(target=reader, daemon=True).start()
+        reader_thread = threading.Thread(target=reader, daemon=True)
+        reader_thread.start()
         text = ''
         def until(marker):
             nonlocal text
@@ -86,6 +92,11 @@ def main():
             print('PASS: native terminal /login opens Synderesis account connection, cancellation and Quit')
         finally:
             close()
+            reader_thread.join(2)
+            if os.name == "nt":
+                process = None
+                gc.collect()
+                time.sleep(0.5)
             server.shutdown()
             server.server_close()
 

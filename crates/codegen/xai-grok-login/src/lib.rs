@@ -33,6 +33,7 @@ pub mod refresh;
 pub mod side_call_bearer;
 pub mod single_flight;
 pub mod storage;
+pub mod synderesis;
 pub mod token_output;
 pub mod token_type;
 pub use api_key_probe::{

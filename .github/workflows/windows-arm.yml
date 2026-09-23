@@ -63,3 +63,9 @@ jobs:
           $env:SYNDERESIS_FIXTURE_MODELS_UNAVAILABLE = '1'
           python synderesis/check_tool_roundtrip.py
           if ($LASTEXITCODE -ne 0) { throw 'ARM unavailable-catalog roundtrip failed' }
+      - name: Exercise Synderesis sign-in and model calls on ARM
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
+          python synderesis/check_login_roundtrip.py
+          if ($LASTEXITCODE -ne 0) { throw 'ARM Synderesis login roundtrip failed' }

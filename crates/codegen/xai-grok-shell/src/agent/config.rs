@@ -4341,6 +4341,9 @@ impl ModelEntry {
     /// `None` falls through to the session / global key.
     /// Static only: never consults auth-provider tokens.
     pub(crate) fn own_credential(&self) -> Option<String> {
+        if xai_grok_login::synderesis::enabled() && self.info().model == "synderesis-code" {
+            return xai_grok_login::synderesis::current_key();
+        }
         first_own_credential(self.api_key.as_deref(), self.env_key.as_ref())
     }
     /// The provider governing this model's bearer: `None` when a static `api_key`/`env_key` resolves.
@@ -4675,7 +4678,10 @@ pub(crate) fn resolve_credentials(
     session_key: Option<&str>,
 ) -> ResolvedCredentials {
     let info = model.info();
-    let (api_key, base_url, auth_type) = if let Some(key) = model.own_credential() {
+    let (api_key, base_url, auth_type) = if xai_grok_login::synderesis::enabled() && info.model == "synderesis-code" {
+        // No environment/session fallback after logout or account switching.
+        (xai_grok_login::synderesis::current_key(), info.base_url.clone(), xai_chat_state::AuthType::ApiKey)
+    } else if let Some(key) = model.own_credential() {
         (
             Some(key),
             info.base_url.clone(),

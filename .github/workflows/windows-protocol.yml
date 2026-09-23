@@ -36,7 +36,9 @@ jobs:
             ~/.cargo/git
             target
           key: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-${{ inputs.build_ref || github.sha }}
-          restore-keys: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
+          restore-keys: |
+            windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
+            windows-rust-1.94-
       - name: Reuse exact runtime compilation timestamps
         if: inputs.build_ref != '' && steps.cache.outputs.cache-hit == 'true'
         shell: pwsh
@@ -74,3 +76,15 @@ jobs:
           python -m pip install pywinpty==3.0.3
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
           python "$env:RUNNER_TEMP/verification/check_cmd_startup.py"
+      - name: Exercise interactive Synderesis sign-in and account switching
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
+          python "$env:RUNNER_TEMP/verification/check_login_roundtrip.py"
+          if ($LASTEXITCODE -ne 0) { throw 'Synderesis login roundtrip failed' }
+      - name: Exercise literal /login in native CMD
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
+          python "$env:RUNNER_TEMP/verification/check_interactive_login.py"
+          if ($LASTEXITCODE -ne 0) { throw 'Native /login UI check failed' }

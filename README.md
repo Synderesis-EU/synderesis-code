@@ -12,7 +12,7 @@ Apple Silicon macOS:
 curl -fsSL https://www.synderesis.eu/cli/install.sh | bash
 ```
 
-Windows x64, in Command Prompt:
+Windows x64 or ARM64 (through x64 emulation), in Command Prompt:
 
 ```cmd
 curl.exe -fsSL https://www.synderesis.eu/cli/install.cmd -o "%TEMP%\synderesis-install.cmd" && call "%TEMP%\synderesis-install.cmd"
@@ -28,7 +28,7 @@ The installers download a native executable and verify the release checksum. Pyt
 
 ## Sign in
 
-Run `synderesis-code login`. Your browser opens the normal Synderesis account website, where you sign in and return automatically to the CLI. A one-use PKCE exchange connects the CLI; its account key is saved in your operating system's credential store. You do not need a separate model-provider account.
+Run `synderesis-code login`, or `/login` inside an open CLI session. Both commands use the same Synderesis sign-in flow. Your browser opens the normal Synderesis account website, where you sign in and return automatically to the CLI. A one-use PKCE exchange connects the CLI; its account key is saved in your operating system's credential store. You do not need a separate model-provider account.
 
 Then run `synderesis-code` in your project, or `synderesis-code -p "Explain this project"` for a single terminal response. Use `--help` for local permissions and sandbox options. State is kept in `~/.synderesis-code` (override with `SYNDERESIS_CODE_HOME`). In unattended environments, inject `SYNDERESIS_API_KEY` at runtime using your secret manager. Never put a real key in a plaintext `.env` file.
 
@@ -66,7 +66,7 @@ cargo build -p xai-grok-pager-bin --release --locked --target x86_64-pc-windows-
 
 Do not enable `synderesis-test-endpoint` in distributed builds. That feature exists solely for loopback integration tests. Normal builds use the canonical Synderesis API.
 
-Native packages target Apple Silicon macOS and Windows x64. Both are unsigned; the macOS binary is not notarized. Other operating systems require building from source and have not yet been verified. Windows builds use the portability fixes recorded in the package's `BUILD-COMMIT.txt` and the matching Windows source archive.
+Native packages target Apple Silicon macOS and Windows x64; Windows ARM64 runs the x64 package under emulation. Both are unsigned; the macOS binary is not notarized. Other operating systems require building from source and have not yet been verified. Windows builds use the portability fixes recorded in the package's `BUILD-COMMIT.txt` and the matching Windows source archive.
 
 ## Attribution
 

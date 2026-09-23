@@ -1979,6 +1979,14 @@ impl SessionActor {
     /// Session-token path is best-effort: on success, update credentials and return.
     /// On failure, do not fall through to the JWT/config.toml branch when the session gate was active; that path is for BYOK JWTs only.
     pub(crate) async fn refresh_token_if_expired(&self) {
+        if xai_grok_login::synderesis::enabled() {
+            if self.chat_state_handle.get_sampling_config().await.is_some_and(|c| c.model == "synderesis-code") {
+                let mut creds = self.chat_state_handle.get_credentials().await;
+                creds.api_key = xai_grok_login::synderesis::current_key();
+                self.chat_state_handle.update_credentials(creds);
+                return;
+            }
+        }
         if let Some(ref am) = self.auth_manager {
             let creds = self.chat_state_handle.get_credentials().await;
             // Gate on the stable classifier, not `creds.auth_type`; this also heals a transient `ApiKey` flip by writing the refreshed token into `creds.api_key` below

@@ -45,6 +45,11 @@ fn handle_cancel(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
 }
 
 async fn handle_get_bearer_token(agent: &MvpAgent) -> ExtResult {
+    if xai_grok_login::synderesis::enabled() {
+        return ExtMethodResult::success(serde_json::json!({"token": xai_grok_login::synderesis::current_key()}))
+            .to_ext_response()
+            .map_err(|e| acp::Error::internal_error().data(e.to_string()));
+    }
     // Fail closed for session tokens: desktop resume treats non-null as success. Never return a hard-expired access token
     // Still return wire-valid session tokens and static user-supplied keys (process model key, env, or disk api_key) That keeps non-session sessions working when AuthManager has no OIDC entry
     let token = match agent.auth_manager.get_valid_token().await {
@@ -68,6 +73,9 @@ fn handle_get_api_key() -> ExtResult {
 }
 
 fn handle_set_api_key(args: &acp::ExtRequest) -> ExtResult {
+    if xai_grok_login::synderesis::enabled() {
+        return Err(acp::Error::invalid_params().data("Use Synderesis /login to connect this device securely"));
+    }
     let params: serde_json::Value = parse_params(args)?;
     let key = params.get("key").and_then(|v| v.as_str());
     let grok_home = crate::util::grok_home::grok_home();
@@ -146,6 +154,18 @@ async fn handle_logout(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     // Stop any in-flight login so it cannot write credentials back after logout.
     agent.interactive_auth.cancel();
 
+    if xai_grok_login::synderesis::enabled() {
+        let was_logged_in = xai_grok_login::synderesis::current_key().is_some();
+        xai_grok_login::synderesis::logout()
+            .map_err(|e| acp::Error::internal_error().data(e.to_string()))?;
+        agent.sampling_config.borrow_mut().api_key = None;
+        agent.auth_manager.clear_in_memory();
+        agent.auth_manager.set_process_static_api_key(None);
+        return to_raw_response(&serde_json::json!({
+            "ok": true, "was_logged_in": was_logged_in, "email": null,
+            "api_key_still_set": false,
+        }));
+    }
     let result = xai_grok_login::perform_logout(
         &agent.auth_manager,
         params.scope.as_deref(),

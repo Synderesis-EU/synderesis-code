@@ -609,6 +609,32 @@ impl acp::Agent for MvpAgent {
             None,
             Some(serde_json::json!({"method": arguments.method_id.0.as_ref()})),
         );
+        if xai_grok_login::synderesis::enabled() {
+            let meta = AuthRequestMeta::from_json(arguments.meta.as_ref());
+            let key = if arguments.method_id.0.as_ref() == auth_method::XAI_API_KEY_METHOD_ID
+                && !meta.force_interactive && !meta.reauth {
+                xai_grok_login::synderesis::current_key()
+                    .ok_or_else(|| acp::Error::auth_required().data("Sign in to Synderesis with /login"))?
+            } else {
+                let (url_tx, url_rx) = tokio::sync::oneshot::channel();
+                let (code_tx, _code_rx) = tokio::sync::mpsc::channel(1);
+                let (cancel, _guard) = self.interactive_auth.begin(
+                    Some(xai_grok_login::single_flight::AttemptChannels::new(code_tx, url_rx)),
+                    meta.request_seq,
+                );
+                tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => return Err(acp::Error::auth_required().data("Sign-in cancelled")),
+                    result = xai_grok_login::synderesis::login(Some(url_tx)) => {
+                        result.map_err(|e| acp::Error::auth_required().data(e.to_string()))?
+                    }
+                }
+            };
+            self.sampling_config.borrow_mut().api_key = Some(key.clone());
+            self.auth_manager.set_process_static_api_key(Some(key));
+            self.set_auth_method(acp::AuthMethodId::new(auth_method::XAI_API_KEY_METHOD_ID));
+            return Ok(AuthenticateResponse::default());
+        }
         if let Some(preferred) = self.cfg.borrow().grok_com_config.preferred_method {
             let kind = auth_method::AuthMethodKind::from_id(&arguments.method_id);
             let allowed = match preferred {

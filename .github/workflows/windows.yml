@@ -19,7 +19,9 @@ jobs:
             ~/.cargo/git
             target
           key: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
-          restore-keys: windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
+          restore-keys: |
+            windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
+            windows-rust-1.94-
       - name: Install protobuf compiler
         shell: pwsh
         run: |

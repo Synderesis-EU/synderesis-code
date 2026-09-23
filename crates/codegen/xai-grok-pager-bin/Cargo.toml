@@ -22,7 +22,6 @@ sha2 = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
 webbrowser = { workspace = true }
-keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 
 # The pager library (all application logic + the public API main.rs drives).
 xai-grok-pager = { path = "../xai-grok-pager" }
@@ -92,7 +91,7 @@ clap = { workspace = true, features = ["derive"] }
 
 [features]
 # Integration-test builds only; never enable in published artifacts.
-synderesis-test-endpoint = []
+synderesis-test-endpoint = ["xai-grok-login/synderesis-test-endpoint"]
 default = [
     "jemalloc",
     "sandbox-enforce",

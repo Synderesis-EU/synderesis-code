@@ -12,8 +12,8 @@
     } else {
         [string][System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
     }
-    if ($Architecture -notin @('AMD64', 'X64')) {
-        throw "Detected Windows architecture '$Architecture'. This release supports Intel/AMD 64-bit Windows; ARM64 and 32-bit Windows do not yet have a verified package. See https://github.com/Synderesis-EU/synderesis-code/releases"
+    if ($Architecture -notin @('AMD64', 'X64', 'ARM64')) {
+        throw "Detected Windows architecture '$Architecture'. This release supports 64-bit Windows (Intel/AMD and ARM64 via x64 emulation). See https://github.com/Synderesis-EU/synderesis-code/releases"
     }
     $Asset = "synderesis-code-$Version-windows-x86_64.zip"
     $Base = "https://github.com/Synderesis-EU/synderesis-code/releases/download/v$Version"

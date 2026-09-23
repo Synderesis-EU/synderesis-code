@@ -47,6 +47,7 @@ pub fn configure() -> Result<()> {
         }
         value
     };
+    xai_grok_login::synderesis::configure((!key.is_empty()).then(|| key.clone()));
     xai_grok_shell::agent::config::configure_synderesis_model(base_url.clone());
     let config = serde_json::json!({
         "cli": {"auto_update": false},

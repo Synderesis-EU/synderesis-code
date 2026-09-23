@@ -86,6 +86,10 @@ pub struct BuiltAuthMethods {
 /// Unpinned ordering (when each method is enabled): `xai.api_key` (if `has_external_api_key`) `cached_token` (if `has_cached_token`) exactly one of: `oidc` (if `has_enterprise_oidc`) `grok.com` (otherwise)
 /// Unpinned `default_auth_method_id`: `cached_token` if `has_cached_token` `xai.api_key` else if `has_external_api_key` `None` otherwise Pinned (`preferred_method`): `ApiKey`: only `xai.api_key` if available; else an empty list and `None` (fail). `Oidc`: `cached_token` (if any) then interactive login; never `xai.api_key`.
 pub fn build_auth_methods(inputs: AuthMethodsBuildInputs<'_>) -> BuiltAuthMethods {
+    if xai_grok_login::synderesis::enabled() {
+        return build_unpinned(xai_grok_login::synderesis::current_key().is_some(),
+            false, false, None, Some("Synderesis"), true);
+    }
     let AuthMethodsBuildInputs {
         has_external_api_key,
         has_cached_token,

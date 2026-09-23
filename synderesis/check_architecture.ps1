@@ -13,8 +13,8 @@ try {
         @{ Process = 'AMD64'; Native = ''; Accepted = $true },
         @{ Process = 'x86'; Native = 'AMD64'; Accepted = $true },
         @{ Process = 'X64'; Native = ''; Accepted = $true },
-        @{ Process = 'ARM64'; Native = ''; Accepted = $false },
-        @{ Process = 'AMD64'; Native = 'ARM64'; Accepted = $false },
+        @{ Process = 'ARM64'; Native = ''; Accepted = $true },
+        @{ Process = 'AMD64'; Native = 'ARM64'; Accepted = $true },
         @{ Process = 'x86'; Native = ''; Accepted = $false },
         @{ Process = 'unknown'; Native = ''; Accepted = $false }
     )

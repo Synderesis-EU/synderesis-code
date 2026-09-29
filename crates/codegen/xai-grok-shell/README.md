@@ -363,7 +363,7 @@ token_ttl_secs = 3600                      # optional: see below
 timeout_secs = 10                          # optional: command timeout (default 30)
 
 [model.proxied-claude]
-model = "claude-sonnet-4-5"
+model = "claude-sonnet-5-5"
 base_url = "https://litellm.corp.example/v1"
 context_window = 200000
 auth_provider = "litellm"

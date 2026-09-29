@@ -1363,7 +1363,7 @@ mod tests {
                 "allow": ["Bash(npm run build)", "Read(**/src/**)", "Edit(**/src/**)"],
                 "deny": ["Bash(rm -rf *)"]
             },
-            "model": "claude-sonnet-4-20250514",
+            "model": "claude-sonnet-5-5",
             "apiKey": "sk-ant-REDACTED",
             "theme": "dark",
             "customInstructions": "Always use TypeScript",

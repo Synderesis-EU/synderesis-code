@@ -93,5 +93,5 @@
   "disableWorkflows": true,
   "forceLoginMethod": "claudeai",
   "enforceAvailableModels": true,
-  "availableModels": ["haiku", "sonnet", "opus"]
+  "availableModels": ["haiku", "claude-sonnet-5-5", "opus"]
 }

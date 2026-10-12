@@ -42,11 +42,11 @@ Synderesis applies its Catholic system policy on the server and reviews each pro
 
 ## Service and billing
 
-The CLI connects to the Synderesis API. The underlying models may change without requiring a CLI update. Upstream credentials stay on the server. A paid Synderesis subscription and prepaid credit are required. Generation and the separate action review are both charged at provider inference cost divided by 0.70, converted to EUR at the configured published exchange-rate snapshot. This is a 30% gross margin, not a 30% markup. Cached input is priced separately; long-context rates apply when applicable. The server reserves a conservative maximum before dispatch and settles actual usage atomically.
+The CLI connects to the Synderesis API. The underlying models may change without requiring a CLI update. Upstream credentials stay on the server. A paid Synderesis subscription and prepaid credit are required. The current route uses Neon GLM 5.3 Flash. Generation and the separate action review are both charged at 1.5 times provider inference cost, converted to EUR at the configured published exchange-rate snapshot. Cached input is priced separately; pricing evidence follows the actual server route. The server reserves a conservative maximum before dispatch and settles actual usage atomically.
 
 Output is delivered after action review, so the initial response may take longer than an unreviewed live stream. This initial release supports text conversations and local function tools. It does not expose provider-hosted tools, image input or server-stored conversations. EU-only inference has not been verified.
 
-The conversation context window is 500,000 tokens, shared by input and output. The CLI requests up to 32,768 output tokens per turn by default; the API accepts explicit output caps up to the full model window, subject to the combined context limit. Automatic compaction leaves room for the next response and action review. The context counter measures conversation size, not your prepaid credit balance.
+The conversation context window is 500,000 tokens, shared by input and output. The CLI requests up to 32,768 output tokens per turn by default; the current API clamps larger explicit output caps to GLM's 131,000-token output limit, subject to the combined context limit. Automatic compaction leaves room for the next response and action review. The context counter measures conversation size, not your prepaid credit balance.
 
 ## Build
 

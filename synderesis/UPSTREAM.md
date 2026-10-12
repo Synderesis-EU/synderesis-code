@@ -13,20 +13,19 @@ branding, welcome artwork and width-aware loader, and Windows portability.
 Use a three-way update against the recorded upstream baseline in an isolated
 checkout. Never replace the entire fork with an upstream snapshot.
 
-Grok inference remains on the server, behind `synderesis-code`; customers do not
-need an xAI credential. Always verify the latest released Grok model and current
-gateway catalogues before releasing. Prefer Neon when it offers that current
-model and branch access has been verified; otherwise use Vercel. On 2026-10-12,
-the newest model is Grok 4.7 (`spacexai/grok-4.7` on Vercel), while Neon's public
-catalogue offers only Grok 4.6. Do not restore an older upstream default or assume
-a version-specific `-latest` alias advances across Grok generations.
+Inference remains on the server, behind `synderesis-code`; customers do not
+need a model-provider credential. The owner confirmed on 2026-10-12 that the
+current Neon GLM 5.3 Flash route should continue if verified working. Updating
+the native Grok Build source must not reset that server route to upstream's
+baked-in Grok defaults.
 
-The API repository's `python -m scripts.check_code_model_catalogue` verifies the
-newest model by release date, provider token limits and committed cached/long
-context pricing. It fails when a newer Grok appears, pricing changes, or Neon
-adds the current model. Update and verify generation, action review and credit
-settlement together; never automatically route to a new model using stale rates.
-Provider selection stays separate from native source and installer versions.
+For a future requested Grok route, verify the latest released Grok and live
+provider catalogues, including pricing and capabilities. Prefer Neon when it
+offers that current model with verified branch access; otherwise use Vercel.
+The 2026-10-12 catalogues list Grok 4.7 on Vercel and only Grok 4.6 on Neon.
+Choose by release date rather than numeric version: Grok 4.20 predates 4.7.
+Never assume a version-specific `-latest` alias advances across generations,
+and never automatically route to a new model using stale billing rates.
 
 Before distributing a native build, run the login/account-switch/logout,
 HTTP/file-tool roundtrip, catalogue-outage and terminal layout checks. Compile

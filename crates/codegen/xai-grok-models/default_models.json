@@ -9,7 +9,7 @@
       "id": "synderesis-code",
       "model": "synderesis-code",
       "name": "Synderesis Code",
-      "description": "Catholic coding assistant powered by Grok through Synderesis",
+      "description": "Catholic coding assistant through Synderesis",
       "context_window": 500000,
       "api_backend": "responses",
       "supports_backend_search": false,

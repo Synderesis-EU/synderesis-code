@@ -1,4 +1,4 @@
-// Modified by Synderesis, 2026-09-21: shared ink/blue product palette.
+// Modified by Synderesis, 2026-10-12: shared ink/blue palette and visible light-theme scrollbar.
 //! GrokDay is the light counterpart to GrokNight.
 //! Backgrounds and text use a neutral grayscale ramp (no blue/warm tint).
 //! Accent colors are the same hue family as GrokNight but deepened for contrast on light backgrounds.
@@ -98,7 +98,7 @@ impl Theme {
             accent_model: TEAL,
 
             scrollbar_bg: BG_STORM_DARK,
-            scrollbar_fg: BG_HIGHLIGHT,
+            scrollbar_fg: FG_DARK,
 
             diff_delete_bg: RED_LIGHT,
             diff_delete_fg: RED,

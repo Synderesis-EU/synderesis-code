@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: preserve Synderesis endpoint exports after upstream extraction.
 //! Grok config covers file loading and layering, service endpoints, remote settings, vendor compat, the campaign overlay, and the MCP server list.
 //! `xai-grok-cloud-config` fetches, caches, and refreshes the remote settings.
 //!

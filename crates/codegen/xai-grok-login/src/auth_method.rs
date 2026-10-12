@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: preserve account-bound credentials with upstream runtime key handling.
 //! First-party API-key environment primitives.
 //!
 //! Only the env-key checks the auth subsystem itself needs live here. The ACP

@@ -87,8 +87,26 @@ pub struct BuiltAuthMethods {
 /// Unpinned `default_auth_method_id`: `cached_token` if `has_cached_token` `xai.api_key` else if `has_external_api_key` `None` otherwise Pinned (`preferred_method`): `ApiKey`: only `xai.api_key` if available; else an empty list and `None` (fail). `Oidc`: `cached_token` (if any) then interactive login; never `xai.api_key`.
 pub fn build_auth_methods(inputs: AuthMethodsBuildInputs<'_>) -> BuiltAuthMethods {
     if xai_grok_login::synderesis::enabled() {
-        return build_unpinned(xai_grok_login::synderesis::current_key().is_some(),
-            false, false, None, Some("Synderesis"), true);
+        let has_key = xai_grok_login::synderesis::current_key().is_some();
+        let mut methods = Vec::new();
+        if has_key {
+            methods.push(acp::AuthMethod::Agent(acp::AuthMethodAgent::new(
+                acp::AuthMethodId::new(XAI_API_KEY_METHOD_ID),
+                "Synderesis credential",
+            )));
+        }
+        methods.push(acp::AuthMethod::Agent(
+            acp::AuthMethodAgent::new(acp::AuthMethodId::new("synderesis.login"), "Synderesis")
+                .meta(
+                    serde_json::json!({"external_provider": true})
+                        .as_object()
+                        .cloned(),
+                ),
+        ));
+        return BuiltAuthMethods {
+            methods,
+            default_auth_method_id: has_key.then(|| acp::AuthMethodId::new(XAI_API_KEY_METHOD_ID)),
+        };
     }
     let AuthMethodsBuildInputs {
         has_external_api_key,
@@ -248,7 +266,7 @@ impl AuthMethodKind {
         match id.0.as_ref() {
             XAI_API_KEY_METHOD_ID => Self::XaiApiKey,
             CACHED_TOKEN_AUTH_METHOD_ID => Self::CachedToken,
-            GROK_COM_METHOD_ID => Self::GrokCom,
+            "synderesis.login" | GROK_COM_METHOD_ID => Self::GrokCom,
             OIDC_METHOD_ID => Self::Oidc,
             _ => Self::Unknown,
         }
@@ -303,9 +321,10 @@ pub(crate) fn session_token_auth_gate(
 }
 
 pub const AUTH_ERROR_SESSION_EXPIRED: &str =
-    "Session expired. Run `grok login` to re-authenticate.";
+    "Session expired. Run `synderesis-code login` to re-authenticate.";
 
-pub const AUTH_ERROR_API_KEY: &str = "Authentication failed. Run `grok login`, set XAI_API_KEY, or add api_key to ~/.grok/config.toml.";
+pub const AUTH_ERROR_API_KEY: &str =
+    "Authentication failed. Sign in to Synderesis with /login or run `synderesis-code login`.";
 
 /// Next ACP method id when `cached_token` cannot proceed (missing / expired / legacy WebLogin), or `None` when fallthrough is forbidden.
 /// Unpinned: prefer non-interactive `xai.api_key` when advertiseable, else interactive `grok.com`. Pinned `oidc`: **no** fallthrough to api_key; return `None` so the caller fails auth.
@@ -328,8 +347,7 @@ pub(crate) fn method_id_after_cached_token_unavailable(
 pub const PREFERRED_API_KEY_UNAVAILABLE: &str = "preferred_method=api_key but no API key is configured (set XAI_API_KEY or model api_key/env_key in config.toml).";
 
 /// Error when `preferred_method=oidc` but the session path cannot proceed.
-pub const PREFERRED_OIDC_UNAVAILABLE: &str =
-    "preferred_method=oidc but no session is available. Run `grok login` to authenticate.";
+pub const PREFERRED_OIDC_UNAVAILABLE: &str = "preferred_method=oidc but no session is available. Run `synderesis-code login` to authenticate.";
 
 pub const XAI_API_KEY_METHOD_ID: &str = "xai.api_key";
 pub(crate) fn xai_api_key_auth_method() -> acp::AuthMethod {

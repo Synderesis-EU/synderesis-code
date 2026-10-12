@@ -31,6 +31,7 @@ jobs:
           BUILD_RUN: ${{ inputs.build_run }}
           PROTOCOL_RUN: ${{ inputs.protocol_run }}
           REVISION: ${{ inputs.revision }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
         run: |
           $ErrorActionPreference = 'Stop'
           if ($env:REVISION -notmatch '^[a-f0-9]{40}$') { throw 'Invalid source revision' }
@@ -38,7 +39,7 @@ jobs:
             if ($Run.Id -notmatch '^\d+$') { throw 'Invalid run id' }
             $Metadata = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)" | ConvertFrom-Json
             if ($LASTEXITCODE -ne 0 -or $Metadata.head_sha -ne $env:REVISION -or $Metadata.path -ne ".github/workflows/$($Run.File)") { throw 'Artifact provenance mismatch' }
-            if ($Metadata.head_branch -ne 'main' -or $Metadata.event -ne 'workflow_dispatch') { throw 'Unexpected artifact source' }
+            if ($Metadata.head_branch -ne $env:SOURCE_BRANCH -or $Metadata.event -ne 'workflow_dispatch') { throw 'Unexpected artifact source' }
             if ($Run.File -eq 'windows.yml' -and $Metadata.conclusion -ne 'success') { throw 'Production build did not pass' }
             if ($Run.File -eq 'windows-protocol.yml') {
               $Jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)/jobs" | ConvertFrom-Json

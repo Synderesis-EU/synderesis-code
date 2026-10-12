@@ -86,5 +86,9 @@ jobs:
         shell: pwsh
         run: |
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path target/x86_64-pc-windows-msvc/release/synderesis-code.exe).Path
-          python "$env:RUNNER_TEMP/verification/check_interactive_login.py"
-          if ($LASTEXITCODE -ne 0) { throw 'Native /login UI check failed' }
+          foreach ($size in @(@(40,160), @(32,100), @(22,70))) {
+            $env:SYNDERESIS_TEST_ROWS = "$($size[0])"
+            $env:SYNDERESIS_TEST_COLS = "$($size[1])"
+            python "$env:RUNNER_TEMP/verification/check_interactive_login.py"
+            if ($LASTEXITCODE -ne 0) { throw "Native /login UI check failed at $($size[1])x$($size[0])" }
+          }

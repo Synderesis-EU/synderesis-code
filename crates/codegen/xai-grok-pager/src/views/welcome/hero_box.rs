@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: preserve readable menus beside the product logo.
 //! Hero box component: the logo and menu sit side by side inside a bordered box.
 
 use ratatui::buffer::Buffer;
@@ -11,7 +12,7 @@ use crate::theme::Theme;
 use super::{WelcomeLayout, WelcomeLayoutInput};
 
 /// Minimum terminal width for the side-by-side hero box layout.
-pub(super) const HERO_BOX_MIN_WIDTH: u16 = 90;
+pub(super) const HERO_BOX_MIN_WIDTH: u16 = 140;
 
 /// Vertical padding (rows) between the box border and its inner content.
 const V_PAD: u16 = 1;
@@ -26,7 +27,7 @@ const LOGO_H_PAD: u16 = 3;
 /// Reserved on top of the announcement text rows so the message never paints over the button.
 const UPGRADE_CTA_ROWS: u16 = 2;
 
-const HERO_SUBTITLE: &str = "Thanks for trying Grok Build, give feedback with /feedback!";
+const HERO_SUBTITLE: &str = "Thanks for trying Synderesis Code, give feedback with /feedback!";
 
 use super::logo::LogoTier;
 use super::{PROMPT_HEIGHT, VERSION_GAP};
@@ -99,11 +100,14 @@ pub(super) fn compute_hero_box(input: &WelcomeLayoutInput<'_>) -> Option<Welcome
 
     // Column widths are height-independent, so derive them once and reuse for both the measurement and the rects
     // `hero_info.width == info_slot_width`, so the measured width is the drawn width
-    let box_width = content_area.width.saturating_sub(6).min(120);
+    let box_width = content_area.width.saturating_sub(6).min(160);
     let inner_width = box_width.saturating_sub(2);
     let left_col_width = left_col_width();
     let right_width = inner_width.saturating_sub(left_col_width);
     let info_slot_width = right_width.saturating_sub(H_INSET);
+    if info_slot_width < super::MENU_MIN_WIDTH {
+        return None;
+    }
     let info_height = match input.announcement {
         Some(ann) => clamp_info_height(
             announcement_desired_rows(ann, info_slot_width, input.expanded, input.has_upgrade_cta),

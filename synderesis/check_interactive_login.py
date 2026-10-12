@@ -13,6 +13,8 @@ from check_tool_roundtrip import Handler
 
 def main():
     binary = str(Path(os.environ['SYNDERESIS_CODE_TEST_BINARY']).resolve())
+    rows = int(os.environ.get('SYNDERESIS_TEST_ROWS', '40'))
+    cols = int(os.environ.get('SYNDERESIS_TEST_COLS', '160'))
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     with tempfile.TemporaryDirectory(prefix='synderesis-slash-login-') as directory:
@@ -22,7 +24,7 @@ def main():
         if os.name == 'nt':
             from winpty import PtyProcess
             env['PATH'] = str(Path(binary).parent) + os.pathsep + env['PATH']
-            process = PtyProcess.spawn('cmd.exe /d /c synderesis-code', cwd=directory, env=env, dimensions=(40, 160))
+            process = PtyProcess.spawn('cmd.exe /d /c synderesis-code', cwd=directory, env=env, dimensions=(rows, cols))
             read = lambda: process.read(65536)
             write = lambda text: process.write(text)
             alive = lambda: process.isalive()
@@ -37,7 +39,7 @@ def main():
             import subprocess
             import termios
             master, slave = pty.openpty()
-            fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 40, 160, 0, 0))
+            fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
             process = subprocess.Popen([binary], cwd=directory, env=env, stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
             os.close(slave)
             read = lambda: os.read(master, 65536).decode('utf-8', 'replace')

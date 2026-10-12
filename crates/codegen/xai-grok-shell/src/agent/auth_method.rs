@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-13: retain product authentication identity and live account credentials.
 use agent_client_protocol as acp;
 
 use crate::agent::config::ModelEntry;

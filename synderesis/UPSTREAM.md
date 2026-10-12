@@ -32,3 +32,10 @@ HTTP/file-tool roundtrip, catalogue-outage and terminal layout checks. Compile
 the distributable without `synderesis-test-endpoint`; loopback test executables
 are verification tools only. Test the binary extracted from the final archive.
 Include checksums, build provenance and the existing license/third-party notices.
+
+The update also retains the working checkout's product-only authentication labels
+and login method, refusal to export customer credentials to upstream auxiliary
+services, saved theme aliases, SYNDERESIS_CODE_SANDBOX, installer-directed
+manual update, and product privacy/feedback routes. Upstream data-sharing and
+voice settings remain hidden. The new upstream login-change subscription follows
+the same cached-upstream-credential isolation rule.

@@ -64,7 +64,7 @@ jobs:
             SHA256SUMS
           if-no-files-found: error
       - uses: actions/cache/save@v4
-        if: always() && steps.cache.outputs.cache-hit != 'true'
+        if: success() && steps.cache.outputs.cache-hit != 'true'
         with:
           path: |
             ~/.cargo/registry

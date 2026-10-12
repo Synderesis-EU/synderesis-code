@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: open the product information/form without exporting session data.
 //! `/feedback`: send a report inline or open the feedback modal.
 
 use crate::app::actions::Action;
@@ -10,7 +11,7 @@ pub struct FeedbackCommand;
 impl SlashCommand for FeedbackCommand {
     slash_meta! {
         name: "feedback",
-        description: "Send feedback about the current session",
+        description: "Open the Synderesis feedback form",
         usage: "/feedback [text]",
         takes_args: true,
         arg_placeholder: "[feedback text]",
@@ -25,6 +26,11 @@ impl SlashCommand for FeedbackCommand {
     }
 
     fn run(&self, ctx: &mut CommandExecCtx, args: &str) -> CommandResult {
+        if xai_grok_login::synderesis::enabled() {
+            return CommandResult::Action(Action::OpenUrl(
+                "https://github.com/Synderesis-EU/synderesis-code/issues/new".into(),
+            ));
+        }
         // Prompt dispatch removes live image elements before passing these arguments and
         // attaches the composer images to the action it gets back.
         let user_text = args.trim();

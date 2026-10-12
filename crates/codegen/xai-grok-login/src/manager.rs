@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: isolate cached upstream auth and credential exports.
 //! `AuthManager` is the single source of truth for `auth.json` and the in-memory bearer cache.
 //! `with_inner_write` is the only writer of the in-memory bearer.
 //! It publishes every login change to `login_changes` subscribers.
@@ -661,6 +662,9 @@ impl AuthManager {
     /// Every accessor that hands a credential to a caller reads `inner` through here.
     /// The direct reads left elsewhere compare token keys or look at `expires_at`, and hand out nothing.
     fn owned_inner(&self) -> Option<GrokAuth> {
+        if crate::synderesis::enabled() {
+            return None;
+        }
         let auth = self.with_inner_read(|inner| inner.cloned())?;
         if !crate::backend::AuthBackend::owns(&crate::backend::ActiveAuthBackend::default(), &auth)
         {
@@ -719,6 +723,9 @@ impl AuthManager {
         config: &GrokComConfig,
         inner: &'a Option<GrokAuth>,
     ) -> Option<&'a GrokAuth> {
+        if crate::synderesis::enabled() {
+            return None;
+        }
         inner.as_ref().filter(|auth| {
             AuthBackend::owns(&ActiveAuthBackend::default(), auth)
                 && Self::login_policy_error(config, auth).is_none()
@@ -1325,6 +1332,9 @@ impl AuthManager {
     /// Also the team-pin gate: a cached/refreshed wrong-team session is cleared and rejected here, never handed to a consumer.
     #[tracing::instrument(skip(self), fields(token_type = tracing::field::Empty))]
     pub async fn auth(self: &Arc<Self>) -> Result<GrokAuth, AuthError> {
+        if crate::synderesis::enabled() {
+            return Err(AuthError::NotLoggedIn);
+        }
         let auth = self.auth_dispatch().await?;
         if let Some(e) = self.cached_token_policy_error(&auth) {
             self.reject_and_clear(&e);
@@ -2018,6 +2028,9 @@ impl AuthManager {
     /// Static/BYOK key for export paths (e.g. desktop `getBearerToken`).
     /// Never a session JWT; respects kill-switch and preferred-method pin.
     pub fn static_api_key_for_export(&self) -> Option<String> {
+        if crate::synderesis::enabled() {
+            return None;
+        }
         crate::side_call_bearer::resolve_static_api_key(self)
     }
 }

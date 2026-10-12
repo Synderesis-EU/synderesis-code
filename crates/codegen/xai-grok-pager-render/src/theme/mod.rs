@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: preserve current and legacy saved theme names.
 //! All colors come from the `Theme` struct. No hardcoded colors elsewhere.
 //! The default theme is GrokNight (neutral gray base with TokyoNight accents).
 //!
@@ -96,9 +97,9 @@ impl ThemeKind {
 
     pub fn display_name(self) -> &'static str {
         match self {
-            Self::GrokNight => "groknight",
+            Self::GrokNight => "synderesis-night",
             Self::TokyoNight => "tokyonight",
-            Self::GrokDay => "grokday",
+            Self::GrokDay => "synderesis-day",
             Self::RosePineMoon => "rosepine-moon",
             Self::OscuraMidnight => "oscura-midnight",
             Self::Terminal => "terminal",
@@ -130,9 +131,9 @@ impl ThemeKind {
     /// Alternate lowercase spellings accepted by [`from_name`](Self::from_name), excluding [`display_name`](Self::display_name).
     pub fn aliases(self) -> &'static [&'static str] {
         match self {
-            Self::GrokNight => &["grok-night", "dark"],
+            Self::GrokNight => &["groknight", "grok-night", "dark"],
             Self::TokyoNight => &["tokyo-night", "tokyo"],
-            Self::GrokDay => &["grok-day", "light", "day"],
+            Self::GrokDay => &["grokday", "grok-day", "light", "day"],
             Self::RosePineMoon => &["rosepine", "rose-pine", "rose-pine-moon"],
             Self::OscuraMidnight => &["oscura"],
             Self::Terminal => &["terminal-default", "transparent", "native"],
@@ -185,8 +186,8 @@ pub fn canonical_name(value: &str) -> Option<&'static str> {
 pub fn display_name_for_canonical(value: &str) -> &str {
     match value {
         "auto" => "Auto",
-        "groknight" => "Synderesis Dark",
-        "grokday" => "Synderesis Light",
+        "synderesis-night" | "groknight" | "grok-night" => "Synderesis Dark",
+        "synderesis-day" | "grokday" | "grok-day" => "Synderesis Light",
         "tokyonight" => "Tokyo Night",
         "rosepine-moon" => "Rose Pine Moon",
         "terminal" => "Terminal",
@@ -1175,12 +1176,14 @@ mod tests {
         let cases = [
             ("auto", ThemeKind::Auto),
             ("system", ThemeKind::Auto),
+            ("synderesis-night", ThemeKind::GrokNight),
             ("groknight", ThemeKind::GrokNight),
             ("grok-night", ThemeKind::GrokNight),
             ("dark", ThemeKind::GrokNight),
             ("tokyonight", ThemeKind::TokyoNight),
             ("tokyo-night", ThemeKind::TokyoNight),
             ("tokyo", ThemeKind::TokyoNight),
+            ("synderesis-day", ThemeKind::GrokDay),
             ("grokday", ThemeKind::GrokDay),
             ("grok-day", ThemeKind::GrokDay),
             ("light", ThemeKind::GrokDay),

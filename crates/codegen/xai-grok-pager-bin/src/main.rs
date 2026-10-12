@@ -1186,7 +1186,10 @@ fn shutdown_and_flush_telemetry(exit_code: i32) -> ! {
 }
 fn finalize_span_profile() {
     if let Some(path) = xai_grok_telemetry::span_profile::finalize() {
-        eprintln!("synderesis-code: span profile written to {}", path.display());
+        eprintln!(
+            "synderesis-code: span profile written to {}",
+            path.display()
+        );
     }
 }
 #[tracing::instrument(level = "debug", skip_all)]
@@ -2053,9 +2056,20 @@ fn main() {
         xai_grok_update::channel_name().unwrap_or_default(),
     ));
     let args = PagerArgs::parse_cli();
-    if matches!(args.command, Some(Command::Login { .. } | Command::Logout | Command::Update { .. })) {
-        eprintln!("Synderesis Code uses SYNDERESIS_API_KEY and separately installed Synderesis releases. Manage your account at https://www.synderesis.eu/account/.");
-        return;
+    match args.command.as_ref() {
+        Some(Command::Update { .. }) => {
+            println!("Close Synderesis Code, then run the official installer to update:");
+            if cfg!(windows) {
+                println!(
+                    r#"powershell.exe -NoProfile -Command "irm https://www.synderesis.eu/cli/install.ps1 | iex""#
+                );
+            } else {
+                println!("curl -fsSL https://www.synderesis.eu/cli/install.sh | bash");
+            }
+            return;
+        }
+        Some(Command::Login { .. } | Command::Logout) => return,
+        _ => {}
     }
     if dispatch_version_if_requested(&args) || dispatch_doctor_if_requested(&args) {
         return;
@@ -2561,6 +2575,9 @@ async fn finish_update_on_exit(
     adopted: Option<tokio::task::JoinHandle<std::io::Result<std::process::ExitStatus>>>,
     update_config: &UpdateConfig,
 ) -> bool {
+    if xai_grok_login::synderesis::enabled() {
+        return false;
+    }
     let run_blocking = |reason: Option<String>| async move {
         if let Some(reason) = reason {
             eprintln!("{reason}");
@@ -2629,6 +2646,9 @@ async fn run_update_blocking(update_config: &UpdateConfig) -> bool {
 }
 /// Central gate for auto-update checks; add new suppression rules here, not at call sites.
 fn should_check_for_updates(no_auto_update_flag: bool) -> bool {
+    if xai_grok_login::synderesis::enabled() {
+        return false;
+    }
     if cfg!(debug_assertions) {
         return false;
     }

@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: open the product information/form without exporting session data.
 //! `/privacy`: open the "Coding data, retention, and training" setting.
 
 use crate::app::actions::Action;
@@ -12,12 +13,17 @@ impl SlashCommand for PrivacyCommand {
     slash_meta! {
         name: "privacy",
         // Reads as the row it opens: "Coding data, retention, and training".
-        description: "Open coding data, retention, and training settings",
+        description: "Open Synderesis privacy information",
         usage: "/privacy",
     }
 
     /// Trailing text is ignored, not rejected: `/privacy opt-in` from muscle memory should land on the page, not error.
     fn run(&self, _ctx: &mut CommandExecCtx, _args: &str) -> CommandResult {
+        if xai_grok_login::synderesis::enabled() {
+            return CommandResult::Action(Action::OpenUrl(
+                "https://www.synderesis.eu/privacy".into(),
+            ));
+        }
         CommandResult::Action(Action::OpenSettingsFocus {
             key: CODING_DATA_SHARING_KEY,
         })

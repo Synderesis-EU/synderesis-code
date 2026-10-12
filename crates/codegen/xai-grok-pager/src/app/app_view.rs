@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: show product privacy information instead of the unsupported upstream service notice.
 //! Root view component.
 //!
 //! [`AppView`] owns all application state and provides the top-level `handle_input()` and `draw()` methods.
@@ -1186,6 +1187,9 @@ impl AppView {
     }
     /// Welcome privacy banner visibility gates.
     pub fn privacy_banner_should_show(&self) -> bool {
+        if xai_grok_login::synderesis::enabled() {
+            return false;
+        }
         if self.screen_mode.is_minimal() {
             return false;
         }

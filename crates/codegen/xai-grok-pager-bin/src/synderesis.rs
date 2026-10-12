@@ -34,7 +34,7 @@ pub fn configure() -> Result<()> {
     let information_only = args.iter().any(|a| {
         matches!(
             a.as_str(),
-            "--help" | "-h" | "--version" | "-v" | "-V" | "version" | "doctor" | "help"
+            "--help" | "-h" | "--version" | "-v" | "-V" | "version" | "doctor" | "help" | "update"
         )
     });
     if args.first().is_some_and(|a| a == "logout") {

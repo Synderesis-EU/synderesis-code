@@ -1,3 +1,4 @@
+// Modified by Synderesis, 2026-10-12: never export product credentials to upstream side calls.
 //! The bearer for a call that goes straight to an xAI host outside a model turn: the Imagine
 //! tools and pager voice dictation.
 //!
@@ -33,6 +34,9 @@ impl AuthManager {
     /// authority and no static key is configured; [`SideCallBearerError::Missing`] when there is
     /// no wire-valid credential and no static key.
     pub fn side_call_bearer(&self) -> Result<String, SideCallBearerError> {
+        if crate::synderesis::enabled() {
+            return Err(SideCallBearerError::ForeignSession);
+        }
         if prefers_static_api_key(self) {
             return resolve_static_api_key(self).ok_or(SideCallBearerError::Missing);
         }
@@ -52,6 +56,9 @@ impl AuthManager {
     /// As [`Self::side_call_bearer`]. A refresh failure falls back to the still wire-valid
     /// cached token, then the static key, then `Missing`.
     pub async fn side_call_bearer_async(self: &Arc<Self>) -> Result<String, SideCallBearerError> {
+        if crate::synderesis::enabled() {
+            return Err(SideCallBearerError::ForeignSession);
+        }
         if prefers_static_api_key(self) {
             return resolve_static_api_key(self).ok_or(SideCallBearerError::Missing);
         }
@@ -149,6 +156,9 @@ fn prefers_static_api_key(am: &AuthManager) -> bool {
 
 /// Precedence: env, then process model key, then disk. Off under kill-switch / oidc pin.
 pub(crate) fn resolve_static_api_key(am: &AuthManager) -> Option<String> {
+    if crate::synderesis::enabled() {
+        return None;
+    }
     if am.grok_com_config().api_key_auth_disabled() {
         return None;
     }

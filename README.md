@@ -1,6 +1,6 @@
 # Synderesis Code
 
-A Catholic coding assistant for your terminal, an Apache-2.0 fork of Grok Build. It can inspect a project, edit files, run commands with local permission controls, and work through multi-step coding tasks.
+A Catholic coding assistant for your terminal, an Apache-2.0 fork of Grok Build. It can inspect a project, edit files, run commands with local permission controls, and work through multi-step coding tasks. This source incorporates upstream Grok Build 1.0.45 while retaining Synderesis sign-in, policies, local state, branding and permission controls.
 
 **Alpha release.** Requires an active Synderesis subscription and prepaid credit.
 
@@ -70,4 +70,4 @@ Native packages target Apple Silicon macOS and Windows x64; Windows ARM64 runs t
 
 ## Attribution
 
-Synderesis is an independent company. This project is not affiliated with or endorsed by xAI, Vercel, or the Catholic Church. Original Grok Build copyright, Apache-2.0 licensing and third-party notices are retained in `LICENSE` and `THIRD-PARTY-NOTICES`. Modified source files carry change notices. Upstream source revision: `4247f661689354b831191f11eeeac8424993fe3d`.
+Synderesis is an independent company. This project is not affiliated with or endorsed by xAI, Vercel, or the Catholic Church. Original Grok Build copyright, Apache-2.0 licensing and third-party notices are retained in `LICENSE` and `THIRD-PARTY-NOTICES`. Modified source files carry change notices. Upstream source revision: `2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8` (Grok Build 1.0.45); internal source revision is recorded separately in `SOURCE_REV`.

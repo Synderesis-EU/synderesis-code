@@ -14,16 +14,29 @@ pub fn configure() -> Result<()> {
             };
             user_home.map(|p| PathBuf::from(p).join(".synderesis-code"))
         })
-        .ok_or_else(|| anyhow::anyhow!("Set SYNDERESIS_CODE_HOME to your private state directory"))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!("Set SYNDERESIS_CODE_HOME to your private state directory")
+        })?;
     let mut key = std::env::var("SYNDERESIS_API_KEY").unwrap_or_default();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.iter().any(|a| a == "--reauth" || a == "--reauthenticate") {
+    if args
+        .iter()
+        .any(|a| a == "--reauth" || a == "--reauthenticate")
+    {
         bail!("Use synderesis-code login to sign in through the Synderesis website");
     }
-    if args.first().is_some_and(|a| matches!(a.as_str(), "setup" | "share" | "trace")) {
+    if args
+        .first()
+        .is_some_and(|a| matches!(a.as_str(), "setup" | "share" | "trace"))
+    {
         bail!("This upstream cloud command is not part of Synderesis Code");
     }
-    let information_only = args.iter().any(|a| matches!(a.as_str(), "--help" | "-h" | "--version" | "-v" | "-V" | "version" | "doctor" | "help"));
+    let information_only = args.iter().any(|a| {
+        matches!(
+            a.as_str(),
+            "--help" | "-h" | "--version" | "-v" | "-V" | "version" | "doctor" | "help"
+        )
+    });
     if args.first().is_some_and(|a| a == "logout") {
         crate::synderesis_auth::logout()?;
         std::process::exit(0);
@@ -32,8 +45,12 @@ pub fn configure() -> Result<()> {
         crate::synderesis_auth::login()?;
         std::process::exit(0);
     }
-    if key.trim().is_empty() { key = crate::synderesis_auth::saved_key().unwrap_or_default(); }
-    if !information_only && key.trim().is_empty() { key = crate::synderesis_auth::login()?; }
+    if !information_only && key.trim().is_empty() {
+        key = crate::synderesis_auth::saved_key().unwrap_or_default();
+    }
+    if !information_only && key.trim().is_empty() {
+        key = crate::synderesis_auth::login()?;
+    }
     if key.chars().any(char::is_whitespace) {
         bail!("SYNDERESIS_API_KEY must not contain whitespace");
     }
@@ -60,7 +77,9 @@ pub fn configure() -> Result<()> {
     // Runs at the very beginning of main, before threads or the async runtime exist.
     unsafe {
         for (name, _) in std::env::vars_os() {
-            if name.to_str().is_some_and(|n| n.starts_with("GROK_") || n.starts_with("XAI_") || n.starts_with("OTEL_")) {
+            if name.to_str().is_some_and(|n| {
+                n.starts_with("GROK_") || n.starts_with("XAI_") || n.starts_with("OTEL_")
+            }) {
                 std::env::remove_var(name);
             }
         }
@@ -73,12 +92,20 @@ pub fn configure() -> Result<()> {
         std::env::set_var("GROK_MODELS_BASE_URL", &base_url);
         std::env::set_var("GROK_MODELS_LIST_URL", format!("{base_url}/models"));
         for (name, value) in [
-            ("GROK_DISABLE_AUTOUPDATER", "1"), ("DISABLE_ERROR_REPORTING", "1"), ("DISABLE_TELEMETRY", "1"),
-            ("GROK_TELEMETRY_ENABLED", "0"), ("GROK_TELEMETRY_TRACE_UPLOAD", "0"),
-            ("GROK_CLAUDE_MCPS_ENABLED", "0"), ("GROK_CURSOR_MCPS_ENABLED", "0"),
-            ("GROK_CLAUDE_HOOKS_ENABLED", "0"), ("GROK_CURSOR_HOOKS_ENABLED", "0"),
-            ("GROK_RELAY_SYNC_ENABLED", "0"), ("OTEL_TRACES_EXPORTER", "none")
-        ] { std::env::set_var(name, value); }
+            ("GROK_DISABLE_AUTOUPDATER", "1"),
+            ("DISABLE_ERROR_REPORTING", "1"),
+            ("DISABLE_TELEMETRY", "1"),
+            ("GROK_TELEMETRY_ENABLED", "0"),
+            ("GROK_TELEMETRY_TRACE_UPLOAD", "0"),
+            ("GROK_CLAUDE_MCPS_ENABLED", "0"),
+            ("GROK_CURSOR_MCPS_ENABLED", "0"),
+            ("GROK_CLAUDE_HOOKS_ENABLED", "0"),
+            ("GROK_CURSOR_HOOKS_ENABLED", "0"),
+            ("GROK_RELAY_SYNC_ENABLED", "0"),
+            ("OTEL_TRACES_EXPORTER", "none"),
+        ] {
+            std::env::set_var(name, value);
+        }
     }
     Ok(())
 }

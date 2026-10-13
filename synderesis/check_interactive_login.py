@@ -7,20 +7,17 @@ import re
 import tempfile
 import threading
 import time
-from http.server import ThreadingHTTPServer
-from check_tool_roundtrip import Handler
+from terminal_fixture_server import terminal_fixture_server
 
 
 def main():
     binary = str(Path(os.environ['SYNDERESIS_CODE_TEST_BINARY']).resolve())
     rows = int(os.environ.get('SYNDERESIS_TEST_ROWS', '40'))
     cols = int(os.environ.get('SYNDERESIS_TEST_COLS', '160'))
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    with tempfile.TemporaryDirectory(prefix='synderesis-slash-login-') as directory:
+    with terminal_fixture_server() as server_port, tempfile.TemporaryDirectory(prefix='synderesis-slash-login-') as directory:
         env = dict(os.environ, SYNDERESIS_API_KEY='sk_live_synthetic_ui', SYNDERESIS_CODE_HOME=str(Path(directory, 'state')),
-                   SYNDERESIS_CODE_TEST_BASE_URL=f'http://127.0.0.1:{server.server_port}/v1/code',
-                   SYNDERESIS_CODE_TEST_AUTH_ORIGIN=f'http://127.0.0.1:{server.server_port}', TERM='xterm-256color')
+                   SYNDERESIS_CODE_TEST_BASE_URL=f'http://127.0.0.1:{server_port}/v1/code',
+                   SYNDERESIS_CODE_TEST_AUTH_ORIGIN=f'http://127.0.0.1:{server_port}', TERM='xterm-256color')
         if os.name == 'nt':
             from winpty import PtyProcess
             env['PATH'] = str(Path(binary).parent) + os.pathsep + env['PATH']
@@ -99,8 +96,6 @@ def main():
                 process = None
                 gc.collect()
                 time.sleep(0.5)
-            server.shutdown()
-            server.server_close()
 
 
 if __name__ == '__main__':

@@ -6,23 +6,18 @@ import queue
 import tempfile
 import threading
 import time
-from http.server import ThreadingHTTPServer
-
 from winpty import PtyProcess
-from check_tool_roundtrip import Handler
+from terminal_fixture_server import terminal_fixture_server
 
 
 def main():
     binary = Path(os.environ['SYNDERESIS_CODE_TEST_BINARY']).resolve()
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-    worker = threading.Thread(target=server.serve_forever, daemon=True)
-    worker.start()
-    try:
+    with terminal_fixture_server() as server_port:
         with tempfile.TemporaryDirectory(prefix='Synderesis CMD console ') as directory:
             env = dict(os.environ, PATH=str(binary.parent) + os.pathsep + os.environ['PATH'],
                        SYNDERESIS_API_KEY='sk_live_synthetic_fixture_only',
                        SYNDERESIS_CODE_HOME=str(Path(directory, 'state')),
-                       SYNDERESIS_CODE_TEST_BASE_URL=f'http://127.0.0.1:{server.server_port}/v1/code')
+                       SYNDERESIS_CODE_TEST_BASE_URL=f'http://127.0.0.1:{server_port}/v1/code')
             process = PtyProcess.spawn('cmd.exe /d /c synderesis-code', cwd=directory,
                                        env=env, dimensions=(30, 100))
             output = queue.Queue()
@@ -69,10 +64,6 @@ def main():
                 gc.collect()
                 time.sleep(0.5)
         print('PASS: native CMD interactive menu, Synderesis Code title and keyboard Quit')
-    finally:
-        server.shutdown()
-        server.server_close()
-        worker.join(2)
 
 
 if __name__ == '__main__':

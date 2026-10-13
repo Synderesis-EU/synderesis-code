@@ -7,7 +7,8 @@ static AGENT_ID: OnceLock<String> = OnceLock::new();
 static AGENT_INSTANCE_ID: OnceLock<String> = OnceLock::new();
 
 /// Returns the stable agent ID: `GROK_AGENT_ID` if set, else the value cached in `$GROK_HOME/agent_id`.
-/// Otherwise a machine-derived UUID is computed once and persisted there.
+/// Otherwise a UUID is computed once and persisted there. Windows uses a random
+/// UUID so cold startup never waits for PowerShell/WMI hardware discovery.
 /// The first call in a process may block while the computation runs; [`prefetch_agent_id`] starts it early.
 pub fn agent_id() -> String {
     AGENT_ID.get_or_init(load_or_compute_agent_id).clone()
@@ -77,8 +78,17 @@ fn load_or_compute_agent_id() -> String {
         }
     };
 
-    let hash = compute_machine_hash();
-    let id = uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, hash.as_bytes()).to_string();
+    // The upstream Windows machine-ID helper launches an unbounded PowerShell
+    // WMI query, which hangs under ARM emulation when attached to a terminal.
+    // Synderesis disables upstream telemetry; a cached random identifier is
+    // sufficient for the local ACP identity and preserves existing cached IDs.
+    #[cfg(windows)]
+    let id = uuid::Uuid::new_v4().to_string();
+    #[cfg(not(windows))]
+    let id = {
+        let hash = compute_machine_hash();
+        uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, hash.as_bytes()).to_string()
+    };
     if should_persist {
         let _ = write_agent_id_cache(&cache_path, &id);
     }
@@ -175,6 +185,7 @@ fn is_eloop_os_error(e: &std::io::Error) -> bool {
 /// - macOS: mid uses unique hardware IDs (serial, UUID, SEID).
 /// - Linux: /etc/machine-id is shared across containers from the same base image, so include $HOSTNAME (container/host name) for uniqueness.
 /// - Fallback: random UUIDv4 if mid or hostname are unavailable.
+#[cfg(not(windows))]
 fn compute_machine_hash() -> String {
     if cfg!(target_os = "linux") {
         match std::env::var("HOSTNAME") {

@@ -20,7 +20,10 @@ def main():
     if exists.returncode:
         subprocess.run(['git', 'fetch', '--no-tags', 'origin', cached], check=True)
     changed = set(git('diff', '--name-only', '-z', cached, 'HEAD').split(b'\0'))
-    timestamp = int(git('show', '-s', '--format=%ct', cached))
+    # The cache can inherit older crate fingerprints from an earlier build.
+    # The cached commit's date may therefore still be newer than those builds.
+    # Identical content is safe to mark older than every cached compilation.
+    timestamp = 0
     reused = 0
     for raw in git('ls-files', '-z').split(b'\0'):
         if not raw or raw in changed:

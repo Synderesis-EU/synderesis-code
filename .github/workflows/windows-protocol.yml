@@ -39,13 +39,12 @@ jobs:
           restore-keys: |
             windows-rust-1.94-${{ hashFiles('Cargo.lock') }}-
             windows-rust-1.94-
-      - name: Reuse exact runtime compilation timestamps
-        if: inputs.build_ref != '' && steps.cache.outputs.cache-hit == 'true'
+      - name: Reuse unchanged source timestamps from the restored build
+        if: steps.cache.outputs.cache-matched-key != ''
         shell: pwsh
-        run: |
-          # Source content is the exact cached commit. A fresh checkout otherwise
-          # invalidates every workspace crate solely because of newer mtimes.
-          python -c "import os,subprocess; t=int(subprocess.check_output(['git','show','-s','--format=%ct','HEAD'])); paths=subprocess.check_output(['git','ls-files','-z']).decode().split('\0'); [os.utime(p,(t,t)) for p in paths if p and os.path.isfile(p)]"
+        env:
+          CACHED_BUILD_KEY: ${{ steps.cache.outputs.cache-matched-key }}
+        run: python synderesis/reuse_build_timestamps.py "$env:CACHED_BUILD_KEY"
       - name: Install protobuf compiler
         shell: pwsh
         run: |

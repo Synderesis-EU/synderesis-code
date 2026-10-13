@@ -90,14 +90,34 @@ jobs:
       - name: Exercise native CMD startup and literal /login
         shell: pwsh
         run: |
-          python -m pip install --only-binary=:all: pywinpty==3.0.3
-          if ($LASTEXITCODE -ne 0) { throw 'Native terminal test dependency installation failed' }
+          $ErrorActionPreference = 'Stop'
+          $TerminalPython = 'python'
+          if ('${{ matrix.os }}' -eq 'windows-11-arm') {
+            # The ARM wheel currently fails to load its native DLL. Use the
+            # supported x64 terminal driver under the same emulation as the CLI.
+            $PythonRoot = "$env:RUNNER_TEMP/terminal-python-x64"
+            Invoke-WebRequest https://www.python.org/ftp/python/3.13.7/python-3.13.7-embed-amd64.zip -OutFile "$env:RUNNER_TEMP/python-x64.zip"
+            Expand-Archive "$env:RUNNER_TEMP/python-x64.zip" $PythonRoot
+            $WheelMetadata = Invoke-RestMethod https://pypi.org/pypi/pywinpty/3.0.3/json
+            $Wheel = @($WheelMetadata.urls | Where-Object { $_.filename -eq 'pywinpty-3.0.3-cp313-cp313-win_amd64.whl' })
+            if ($Wheel.Count -ne 1) { throw 'Expected terminal driver wheel missing' }
+            Invoke-WebRequest $Wheel[0].url -OutFile "$env:RUNNER_TEMP/terminal-driver.zip"
+            if ((Get-FileHash "$env:RUNNER_TEMP/terminal-driver.zip" -Algorithm SHA256).Hash.ToLower() -ne $Wheel[0].digests.sha256) { throw 'Terminal driver checksum mismatch' }
+            Expand-Archive "$env:RUNNER_TEMP/terminal-driver.zip" "$PythonRoot/Lib/site-packages"
+            @('python313.zip', '.', 'Lib/site-packages', "$((Get-Location).Path)/synderesis", 'import site') | Set-Content "$PythonRoot/python313._pth"
+            $TerminalPython = "$PythonRoot/python.exe"
+            & $TerminalPython -c 'from winpty import PtyProcess; print("x64 terminal driver loaded on Windows ARM")'
+            if ($LASTEXITCODE -ne 0) { throw 'Emulated terminal driver failed to load' }
+          } else {
+            python -m pip install --only-binary=:all: pywinpty==3.0.3
+            if ($LASTEXITCODE -ne 0) { throw 'Native terminal test dependency installation failed' }
+          }
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
-          python synderesis/check_cmd_startup.py
+          & $TerminalPython synderesis/check_cmd_startup.py
           if ($LASTEXITCODE -ne 0) { throw 'CMD startup failed' }
           foreach ($size in @(@(40,160), @(32,100), @(22,70))) {
             $env:SYNDERESIS_TEST_ROWS = "$($size[0])"
             $env:SYNDERESIS_TEST_COLS = "$($size[1])"
-            python synderesis/check_interactive_login.py
+            & $TerminalPython synderesis/check_interactive_login.py
             if ($LASTEXITCODE -ne 0) { throw "Native /login UI check failed at $($size[1])x$($size[0])" }
           }

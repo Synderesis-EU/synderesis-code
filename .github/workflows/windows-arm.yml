@@ -16,6 +16,10 @@ on:
         description: Diagnostic only - reuse a cached device identifier
         type: boolean
         default: false
+      production_only:
+        description: Verify production startup while the protocol build is pending
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -36,10 +40,12 @@ jobs:
           PROTOCOL_RUN: ${{ inputs.protocol_run }}
           REVISION: ${{ inputs.revision }}
           SOURCE_BRANCH: ${{ github.ref_name }}
+          PRODUCTION_ONLY: ${{ inputs.production_only && '1' || '0' }}
         run: |
           $ErrorActionPreference = 'Stop'
           if ($env:REVISION -notmatch '^[a-f0-9]{40}$') { throw 'Invalid source revision' }
           foreach ($Run in @(@{ Id = $env:BUILD_RUN; File = 'windows.yml' }, @{ Id = $env:PROTOCOL_RUN; File = 'windows-protocol.yml' })) {
+            if ($env:PRODUCTION_ONLY -eq '1' -and $Run.File -eq 'windows-protocol.yml') { continue }
             if ($Run.Id -notmatch '^\d+$') { throw 'Invalid run id' }
             $Metadata = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)" | ConvertFrom-Json
             if ($LASTEXITCODE -ne 0 -or $Metadata.path -ne ".github/workflows/$($Run.File)") { throw 'Artifact provenance mismatch' }
@@ -59,9 +65,11 @@ jobs:
           }
           gh run download $env:BUILD_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-windows-x86_64 --dir fixture
           if ($LASTEXITCODE -ne 0) { throw 'Production artifact download failed' }
-          gh run download $env:PROTOCOL_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-loopback-test-only --dir test-binary
-          if ($LASTEXITCODE -ne 0) { throw 'Test artifact download failed' }
-          if ((Get-Content test-binary/BUILD-COMMIT.txt -Raw).Trim() -ne $env:REVISION) { throw 'Wrong test executable build revision' }
+          if ($env:PRODUCTION_ONLY -ne '1') {
+            gh run download $env:PROTOCOL_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-loopback-test-only --dir test-binary
+            if ($LASTEXITCODE -ne 0) { throw 'Test artifact download failed' }
+            if ((Get-Content test-binary/BUILD-COMMIT.txt -Raw).Trim() -ne $env:REVISION) { throw 'Wrong test executable build revision' }
+          }
       - name: Verify production x64 executable on Windows ARM
         shell: pwsh
         env:
@@ -78,6 +86,7 @@ jobs:
           & ./fixture/production/synderesis-code.exe --help
           if ($LASTEXITCODE -ne 0) { throw 'ARM-emulated help failed' }
       - name: Exercise model request and tool response under ARM emulation
+        if: ${{ !inputs.production_only }}
         shell: pwsh
         run: |
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
@@ -87,6 +96,7 @@ jobs:
           python synderesis/check_tool_roundtrip.py
           if ($LASTEXITCODE -ne 0) { throw 'ARM unavailable-catalog roundtrip failed' }
       - name: Exercise Synderesis sign-in and model calls on ARM
+        if: ${{ !inputs.production_only }}
         shell: pwsh
         run: |
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
@@ -128,6 +138,7 @@ jobs:
         shell: pwsh
         env:
           SYNDERESIS_TEST_PRESEED_AGENT_ID: ${{ inputs.preseed_agent_id && '1' || '0' }}
+          PRODUCTION_ONLY: ${{ inputs.production_only && '1' || '0' }}
         run: |
           $Failed = @()
           $Preseed = $env:SYNDERESIS_TEST_PRESEED_AGENT_ID
@@ -137,6 +148,7 @@ jobs:
             @{ Name = 'fixture-no-leader'; Binary = 'test-binary/synderesis-code.exe'; Args = '["--no-leader"]' },
             @{ Name = 'fixture-existing-identity'; Binary = 'test-binary/synderesis-code.exe'; Args = '[]'; Cached = $true }
           )) {
+            if ($env:PRODUCTION_ONLY -eq '1' -and $Case.Name -ne 'production') { continue }
             $env:SYNDERESIS_TEST_PRESEED_AGENT_ID = if ($Case.Cached) { '1' } else { $Preseed }
             $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path $Case.Binary).Path
             $env:SYNDERESIS_TEST_CLI_ARGS = $Case.Args
@@ -153,6 +165,7 @@ jobs:
           path: ${{ runner.temp }}/terminal-diagnostics
           if-no-files-found: ignore
       - name: Exercise literal /login at three terminal sizes
+        if: ${{ !inputs.production_only }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -164,6 +177,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Native /login UI check failed at $($size[1])x$($size[0])" }
           }
       - name: Exercise coding through the interactive terminal worker
+        if: ${{ !inputs.production_only }}
         shell: pwsh
         run: |
           $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path

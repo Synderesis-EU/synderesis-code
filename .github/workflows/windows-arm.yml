@@ -12,6 +12,10 @@ on:
       revision:
         description: Exact runtime revision to verify
         required: true
+      preseed_agent_id:
+        description: Diagnostic only - reuse a cached device identifier
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -115,6 +119,8 @@ jobs:
           "TERMINAL_PYTHON=$TerminalPython" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Compare production and fixture terminal startup
         shell: pwsh
+        env:
+          SYNDERESIS_TEST_PRESEED_AGENT_ID: ${{ inputs.preseed_agent_id && '1' || '0' }}
         run: |
           $Failed = @()
           foreach ($Case in @(

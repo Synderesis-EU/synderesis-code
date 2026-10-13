@@ -28,8 +28,10 @@ Never assume a version-specific `-latest` alias advances across generations,
 and never automatically route to a new model using stale billing rates.
 
 Before distributing a native build, run the login/account-switch/logout,
-HTTP/file-tool roundtrip, catalogue-outage and terminal layout checks. Compile
-the distributable without `synderesis-test-endpoint`; loopback test executables
+HTTP/file-tool roundtrip, catalogue-outage and terminal layout checks. Launch
+from a fresh state directory as well as with an existing cached device identity;
+Windows startup must not depend on upstream PowerShell/WMI hardware discovery.
+Compile the distributable without `synderesis-test-endpoint`; loopback test executables
 are verification tools only. Test the binary extracted from the final archive.
 Include checksums, build provenance and the existing license/third-party notices.
 

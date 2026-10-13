@@ -4,6 +4,8 @@ A Catholic coding assistant for your terminal, an Apache-2.0 fork of Grok Build.
 
 **Alpha release.** Requires an active Synderesis subscription and prepaid credit.
 
+The dated Grok Build 1.0.45 preview is installed from the supplied package; see `INSTALL.txt`. The public installers below still provide the previous published release.
+
 ## Install
 
 Apple Silicon macOS:

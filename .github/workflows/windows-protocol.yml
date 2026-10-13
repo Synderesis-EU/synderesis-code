@@ -54,10 +54,16 @@ jobs:
       - name: Build isolated test binary
         run: cargo build -p xai-grok-pager-bin --release --locked --target x86_64-pc-windows-msvc --features synderesis-test-endpoint
       - name: Preserve test-only executable for verification retries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path test-binary
+          Copy-Item target/x86_64-pc-windows-msvc/release/synderesis-code.exe test-binary/
+          git rev-parse HEAD | Set-Content test-binary/BUILD-COMMIT.txt
+      - name: Upload test-only executable for verification retries
         uses: actions/upload-artifact@v4
         with:
           name: synderesis-code-loopback-test-only
-          path: target/x86_64-pc-windows-msvc/release/synderesis-code.exe
+          path: test-binary/*
       - name: Exercise HTTP and local file tool
         shell: pwsh
         run: |

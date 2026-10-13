@@ -42,10 +42,16 @@ jobs:
           foreach ($Run in @(@{ Id = $env:BUILD_RUN; File = 'windows.yml' }, @{ Id = $env:PROTOCOL_RUN; File = 'windows-protocol.yml' })) {
             if ($Run.Id -notmatch '^\d+$') { throw 'Invalid run id' }
             $Metadata = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)" | ConvertFrom-Json
-            if ($LASTEXITCODE -ne 0 -or $Metadata.head_sha -ne $env:REVISION -or $Metadata.path -ne ".github/workflows/$($Run.File)") { throw 'Artifact provenance mismatch' }
+            if ($LASTEXITCODE -ne 0 -or $Metadata.path -ne ".github/workflows/$($Run.File)") { throw 'Artifact provenance mismatch' }
             if ($Metadata.head_branch -ne $env:SOURCE_BRANCH -or $Metadata.event -ne 'workflow_dispatch') { throw 'Unexpected artifact source' }
-            if ($Run.File -eq 'windows.yml' -and $Metadata.conclusion -ne 'success') { throw 'Production build did not pass' }
+            if ($Run.File -eq 'windows.yml' -and ($Metadata.conclusion -ne 'success' -or $Metadata.head_sha -ne $env:REVISION)) { throw 'Production build did not pass for requested revision' }
             if ($Run.File -eq 'windows-protocol.yml') {
+              # Verification scripts may advance while the selected runtime is
+              # pinned. Require identical compiled source plus its build receipt.
+              git fetch --no-tags origin $env:REVISION $Metadata.head_sha
+              if ($LASTEXITCODE -ne 0) { throw 'Protocol source provenance fetch failed' }
+              git diff --exit-code $env:REVISION $Metadata.head_sha -- crates Cargo.toml Cargo.lock .cargo
+              if ($LASTEXITCODE -ne 0) { throw 'Protocol runtime source differs from requested revision' }
               $Jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($Run.Id)/jobs" | ConvertFrom-Json
               $Compiled = @($Jobs.jobs.steps | Where-Object { $_.name -eq 'Build isolated test binary' -and $_.conclusion -eq 'success' })
               if ($LASTEXITCODE -ne 0 -or $Compiled.Count -ne 1) { throw 'Test binary compilation was not successful' }
@@ -55,6 +61,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Production artifact download failed' }
           gh run download $env:PROTOCOL_RUN --repo $env:GITHUB_REPOSITORY --name synderesis-code-loopback-test-only --dir test-binary
           if ($LASTEXITCODE -ne 0) { throw 'Test artifact download failed' }
+          if ((Get-Content test-binary/BUILD-COMMIT.txt -Raw).Trim() -ne $env:REVISION) { throw 'Wrong test executable build revision' }
       - name: Verify production x64 executable on Windows ARM
         shell: pwsh
         env:

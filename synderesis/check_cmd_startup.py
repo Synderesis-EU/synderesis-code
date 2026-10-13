@@ -23,10 +23,12 @@ def main():
             directory = tempfile.mkdtemp(prefix='CMD-', dir=diagnostic_root)
         else:
             directory = stack.enter_context(tempfile.TemporaryDirectory(prefix='Synderesis CMD console '))
+        cached_id = None
         if os.environ.get('SYNDERESIS_TEST_PRESEED_AGENT_ID') == '1':
             state = Path(directory, 'state')
             state.mkdir(parents=True, exist_ok=True)
-            state.joinpath('agent_id').write_text(str(uuid.uuid4()), encoding='utf-8')
+            cached_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, 'synderesis-existing-device-fixture'))
+            state.joinpath('agent_id').write_text(cached_id, encoding='utf-8')
         env = dict(os.environ, PATH=str(binary.parent) + os.pathsep + os.environ['PATH'],
                    SYNDERESIS_API_KEY='sk_live_synthetic_fixture_only',
                    SYNDERESIS_CODE_HOME=str(Path(directory, 'state')),
@@ -61,6 +63,10 @@ def main():
                     break
             assert 'Resume session' in text and 'Quit' in text, repr(text[-3000:])
             assert 'Synderesis Code' in text, 'Branded terminal title missing'
+            saved_id = Path(directory, 'state', 'agent_id').read_text(encoding='utf-8').strip()
+            uuid.UUID(saved_id)
+            if cached_id:
+                assert saved_id == cached_id, 'Existing device identity was replaced'
             # The existing Quit shortcut requires a second press to confirm.
             process.write('\x11')
             time.sleep(0.2)

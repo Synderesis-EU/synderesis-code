@@ -123,11 +123,14 @@ jobs:
           SYNDERESIS_TEST_PRESEED_AGENT_ID: ${{ inputs.preseed_agent_id && '1' || '0' }}
         run: |
           $Failed = @()
+          $Preseed = $env:SYNDERESIS_TEST_PRESEED_AGENT_ID
           foreach ($Case in @(
             @{ Name = 'production'; Binary = 'fixture/production/synderesis-code.exe'; Args = '[]' },
             @{ Name = 'fixture'; Binary = 'test-binary/synderesis-code.exe'; Args = '[]' },
-            @{ Name = 'fixture-no-leader'; Binary = 'test-binary/synderesis-code.exe'; Args = '["--no-leader"]' }
+            @{ Name = 'fixture-no-leader'; Binary = 'test-binary/synderesis-code.exe'; Args = '["--no-leader"]' },
+            @{ Name = 'fixture-existing-identity'; Binary = 'test-binary/synderesis-code.exe'; Args = '[]'; Cached = $true }
           )) {
+            $env:SYNDERESIS_TEST_PRESEED_AGENT_ID = if ($Case.Cached) { '1' } else { $Preseed }
             $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path $Case.Binary).Path
             $env:SYNDERESIS_TEST_CLI_ARGS = $Case.Args
             $env:SYNDERESIS_TEST_DIAGNOSTIC_DIR = "$env:RUNNER_TEMP/terminal-diagnostics/$($Case.Name)"

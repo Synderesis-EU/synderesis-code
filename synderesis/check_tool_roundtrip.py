@@ -29,6 +29,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if self.path == '/fixture-status':
+            self.send(json.dumps({'marker': MARKER, 'received_file_content': seen_tool_result}).encode())
+            return
         if os.environ.get('SYNDERESIS_FIXTURE_MODELS_UNAVAILABLE') == '1':
             self.send_error(503, 'Synthetic catalog outage')
             return

@@ -1,12 +1,14 @@
 """Exercise the literal /login command in a native terminal using synthetic auth."""
 import os
 import gc
+import json
 from pathlib import Path
 import queue
 import re
 import tempfile
 import threading
 import time
+from urllib.request import urlopen
 from terminal_fixture_server import terminal_fixture_server
 
 
@@ -14,14 +16,21 @@ def main():
     binary = str(Path(os.environ['SYNDERESIS_CODE_TEST_BINARY']).resolve())
     rows = int(os.environ.get('SYNDERESIS_TEST_ROWS', '40'))
     cols = int(os.environ.get('SYNDERESIS_TEST_COLS', '160'))
+    tool_turn = os.environ.get('SYNDERESIS_TEST_INTERACTIVE_TOOL') == '1'
     with terminal_fixture_server() as server_port, tempfile.TemporaryDirectory(prefix='synderesis-slash-login-') as directory:
+        arguments = []
+        if tool_turn:
+            with urlopen(f'http://127.0.0.1:{server_port}/fixture-status', timeout=5) as response:
+                marker = json.load(response)['marker']
+            Path(directory, 'release-check.txt').write_text(marker + '\n', encoding='utf-8')
+            arguments = ['--tools', 'read_file', '--allow', 'Read', '--disable-web-search', '--trust-folder']
         env = dict(os.environ, SYNDERESIS_API_KEY='sk_live_synthetic_ui', SYNDERESIS_CODE_HOME=str(Path(directory, 'state')),
                    SYNDERESIS_CODE_TEST_BASE_URL=f'http://127.0.0.1:{server_port}/v1/code',
                    SYNDERESIS_CODE_TEST_AUTH_ORIGIN=f'http://127.0.0.1:{server_port}', TERM='xterm-256color')
         if os.name == 'nt':
             from winpty import PtyProcess
             env['PATH'] = str(Path(binary).parent) + os.pathsep + env['PATH']
-            process = PtyProcess.spawn('cmd.exe /d /c synderesis-code', cwd=directory, env=env, dimensions=(rows, cols))
+            process = PtyProcess.spawn('cmd.exe /d /c synderesis-code ' + ' '.join(arguments), cwd=directory, env=env, dimensions=(rows, cols))
             read = lambda: process.read(65536)
             write = lambda text: process.write(text)
             alive = lambda: process.isalive()
@@ -37,7 +46,7 @@ def main():
             import termios
             master, slave = pty.openpty()
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', rows, cols, 0, 0))
-            process = subprocess.Popen([binary], cwd=directory, env=env, stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
+            process = subprocess.Popen([binary, *arguments], cwd=directory, env=env, stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
             os.close(slave)
             read = lambda: os.read(master, 65536).decode('utf-8', 'replace')
             write = lambda text: os.write(master, text.encode())
@@ -71,16 +80,24 @@ def main():
         try:
             until('Resume session')
             text = ''
-            write('/login')
-            time.sleep(0.3)
-            write('\r')
-            until('Waiting for login to complete')
-            # The ACP roundtrip check verifies this same flow's exact URL and PKCE exchange.
-            assert 'accounts.x.ai' not in text and 'grok.com' not in text, 'Upstream login still shown'
-            write('\x1b')
-            time.sleep(0.2)
-            write('\x1b')
-            time.sleep(0.2)
+            if tool_turn:
+                write('Read release-check.txt with read_file and reply with its content.')
+                time.sleep(0.3)
+                write('\r')
+                until(marker)
+                with urlopen(f'http://127.0.0.1:{server_port}/fixture-status', timeout=5) as response:
+                    assert json.load(response)['received_file_content'], 'The interactive worker did not read the actual file'
+            else:
+                write('/login')
+                time.sleep(0.3)
+                write('\r')
+                until('Waiting for login to complete')
+                # The ACP roundtrip check verifies this same flow's exact URL and PKCE exchange.
+                assert 'accounts.x.ai' not in text and 'grok.com' not in text, 'Upstream login still shown'
+                write('\x1b')
+                time.sleep(0.2)
+                write('\x1b')
+                time.sleep(0.2)
             write('\x11')
             time.sleep(0.2)
             write('\x11')
@@ -88,7 +105,10 @@ def main():
             while alive() and time.monotonic() < deadline:
                 time.sleep(0.1)
             assert not alive(), 'Could not quit after cancelling /login'
-            print('PASS: native terminal /login opens Synderesis account connection, cancellation and Quit')
+            if tool_turn:
+                print('PASS: native terminal prompt, HTTP model call, actual file tool, rendered answer and Quit')
+            else:
+                print('PASS: native terminal /login opens Synderesis account connection, cancellation and Quit')
         finally:
             close()
             reader_thread.join(2)

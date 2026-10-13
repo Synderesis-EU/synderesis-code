@@ -163,3 +163,12 @@ jobs:
             & $env:TERMINAL_PYTHON synderesis/check_interactive_login.py
             if ($LASTEXITCODE -ne 0) { throw "Native /login UI check failed at $($size[1])x$($size[0])" }
           }
+      - name: Exercise coding through the interactive terminal worker
+        shell: pwsh
+        run: |
+          $env:SYNDERESIS_CODE_TEST_BINARY = (Resolve-Path test-binary/synderesis-code.exe).Path
+          $env:SYNDERESIS_TEST_INTERACTIVE_TOOL = '1'
+          $env:SYNDERESIS_TEST_ROWS = '32'
+          $env:SYNDERESIS_TEST_COLS = '100'
+          & $env:TERMINAL_PYTHON synderesis/check_interactive_login.py
+          if ($LASTEXITCODE -ne 0) { throw 'Interactive terminal coding workflow failed' }
